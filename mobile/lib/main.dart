@@ -5934,148 +5934,340 @@ class _PointChip extends StatelessWidget {
   }
 }
 
-class _FinflowCommunityTab extends StatelessWidget {
+class _FinflowCommunityTab extends StatefulWidget {
   const _FinflowCommunityTab({required this.preset});
 
   final DemoPreset preset;
 
-  void _openQrActions(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (sheetContext) {
-        return _QrCommunitySheet(parentContext: context);
-      },
-    );
+  @override
+  State<_FinflowCommunityTab> createState() => _FinflowCommunityTabState();
+}
+
+class _FinflowCommunityTabState extends State<_FinflowCommunityTab> {
+  final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  final List<_CommunityChatMessage> _messages = [
+    const _CommunityChatMessage(
+      author: 'Cộng đồng Diện Chẩn',
+      body:
+          'Chào mừng bạn đến khung chat chung. Mọi người có thể đặt câu hỏi, chia sẻ kinh nghiệm và trao đổi nhanh tại đây.',
+      time: '09:20',
+      isMine: false,
+    ),
+    const _CommunityChatMessage(
+      author: 'Minh Tâm',
+      body: 'Có ai có phác đồ nhẹ cho đau vai gáy buổi sáng không ạ?',
+      time: '09:24',
+      isMine: false,
+    ),
+    const _CommunityChatMessage(
+      author: 'Bạn',
+      body:
+          'Bạn thử ghi lại vị trí đau và mức độ đau trước, rồi tra nhóm huyệt phản chiếu cổ vai gáy nhé.',
+      time: '09:27',
+      isMine: true,
+    ),
+    const _CommunityChatMessage(
+      author: 'Hoàng Anh',
+      body: 'Mình đã lưu lại, tối nay sẽ thử và cập nhật kết quả.',
+      time: '09:31',
+      isMine: false,
+    ),
+  ];
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _sendMessage() {
+    final text = _messageController.text.trim();
+    if (text.isEmpty) return;
+
+    final now = TimeOfDay.now();
+    setState(() {
+      _messages.add(
+        _CommunityChatMessage(
+          author: 'Bạn',
+          body: text,
+          time:
+              '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+          isMine: true,
+        ),
+      );
+      _messageController.clear();
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return Column(
       key: const ValueKey('finflow-community'),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
       children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Kết nối của tôi',
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 32),
+        Container(
+          margin: const EdgeInsets.fromLTRB(16, 12, 16, 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFF211610),
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
               ),
-            ),
-            Material(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(17),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(17),
-                onTap: () => _openQrActions(context),
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  alignment: Alignment.center,
-                  child: const Icon(Icons.add, size: 20),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD7F266),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.forum_rounded,
+                  color: Color(0xFF213319),
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Image.asset(
-            'assets/images/course_classroom.jpg',
-            height: 148,
-            width: double.infinity,
-            fit: BoxFit.cover,
-          ),
-        ),
-        const SizedBox(height: 10),
-        const Text(
-          'Bạn bè',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
-        ),
-        const SizedBox(height: 6),
-        _ConnectCard(
-          isPrimary: true,
-          title: 'Mã kết nối bạn bè',
-          connectionId: 'ID-BAN-LEHOANGANH-5690',
-          expiry: '07/30',
-          status: 'Bạn bè: 128',
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const _ConnectionListPage(
-                title: 'Danh sách bạn bè',
-                accent: Color(0xFFD7F266),
-                icon: Icons.person_outline_rounded,
-                items: [
-                  'Nguyễn Anh Tuấn · ID-BAN-TUAN-3021',
-                  'Trần Minh Hà · ID-BAN-HA-7742',
-                  'Lê Thanh Vy · ID-BAN-VY-6180',
-                  'Đào Quốc Nam · ID-BAN-NAM-2241',
-                ],
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Chat cộng đồng',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Mở cho tất cả người dùng',
+                      style: TextStyle(
+                        color: Color(0xFFD9CEC5),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        const Text(
-          'Nhóm cộng đồng',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
-        ),
-        const SizedBox(height: 6),
-        _ConnectCard(
-          isPrimary: false,
-          title: 'Mã nhóm chuyên gia',
-          connectionId: 'ID-NHOM-CHUYENGIA-3421',
-          expiry: '12/28',
-          status: 'Nhóm: 24',
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const _ConnectionListPage(
-                title: 'Danh sách nhóm cộng đồng',
-                accent: Color(0xFF1F4C39),
-                icon: Icons.groups_2_outlined,
-                items: [
-                  'Nhóm Mất ngủ chủ động · ID-NHOM-MATNGU-01',
-                  'Nhóm Đau đầu phản chiếu · ID-NHOM-DAUDAU-08',
-                  'Nhóm Hỗ trợ người mới · ID-NHOM-MOI-15',
-                  'Nhóm Tra cứu huyệt nhanh · ID-NHOM-HUYET-26',
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => _openQrActions(context),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.qr_code_2_rounded, color: Color(0xFF1D5C45)),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Quét QR để thêm bạn hoặc tham gia cộng đồng ngay',
-                    style: TextStyle(fontWeight: FontWeight.w700),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2E644D),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  'Online',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                Icon(Icons.chevron_right),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
+            itemCount: _messages.length,
+            itemBuilder: (context, index) {
+              return _CommunityChatBubble(message: _messages[index]);
+            },
+          ),
+        ),
+        SafeArea(
+          top: false,
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: const Color(0xFFE7DCD1)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.06),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    minLines: 1,
+                    maxLines: 4,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _sendMessage(),
+                    decoration: const InputDecoration(
+                      hintText: 'Nhắn tin vào cộng đồng...',
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Material(
+                  color: const Color(0xFFB55238),
+                  borderRadius: BorderRadius.circular(16),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: _sendMessage,
+                    child: const SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: Icon(
+                        Icons.arrow_upward_rounded,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CommunityChatMessage {
+  const _CommunityChatMessage({
+    required this.author,
+    required this.body,
+    required this.time,
+    required this.isMine,
+  });
+
+  final String author;
+  final String body;
+  final String time;
+  final bool isMine;
+}
+
+class _CommunityChatBubble extends StatelessWidget {
+  const _CommunityChatBubble({required this.message});
+
+  final _CommunityChatMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    final isMine = message.isMine;
+    final bubbleColor = isMine ? const Color(0xFFB55238) : Colors.white;
+    final textColor = isMine ? Colors.white : const Color(0xFF2C1A12);
+    final mutedColor = isMine
+        ? Colors.white.withValues(alpha: 0.72)
+        : const Color(0xFF8C7B70);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment: isMine
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!isMine) ...[
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: const Color(0xFFE9D8CA),
+              child: Text(
+                message.author.substring(0, 1),
+                style: const TextStyle(
+                  color: Color(0xFF7A3F2C),
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 292),
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 9),
+              decoration: BoxDecoration(
+                color: bubbleColor,
+                borderRadius: BorderRadius.only(
+                  topLeft: const Radius.circular(18),
+                  topRight: const Radius.circular(18),
+                  bottomLeft: Radius.circular(isMine ? 18 : 5),
+                  bottomRight: Radius.circular(isMine ? 5 : 18),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (!isMine) ...[
+                    Text(
+                      message.author,
+                      style: const TextStyle(
+                        color: Color(0xFF8B4A31),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                  ],
+                  Text(
+                    message.body,
+                    style: TextStyle(
+                      color: textColor,
+                      height: 1.32,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    message.time,
+                    style: TextStyle(
+                      color: mutedColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
