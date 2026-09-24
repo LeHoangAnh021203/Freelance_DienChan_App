@@ -1,0 +1,12 @@
+services:
+  app:
+    image: node:22-alpine
+    working_dir: /app
+    command: node backend/server.js
+    ports:
+      - "5173:5173"
+    environment:
+      HOST: 0.0.0.0
+      PORT: 5173
+    volumes:
+      - .:/app

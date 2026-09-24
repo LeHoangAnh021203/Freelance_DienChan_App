@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hướng dẫn sử dụng — Sổ tay điện tử Diện Chẩn</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 18mm 16mm 18mm 16mm;
+    }
+
+    :root {
+      --green: #1d5c45;
+      --green-soft: #e8f2eb;
+      --lime: #d7f266;
+      --orange: #e85d1c;
+      --pink: #d63a7a;
+      --text: #1a2a22;
+      --muted: #5d6b63;
+      --line: #d7e0da;
+      --card: #f6faf4;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      color: var(--text);
+      font-size: 11pt;
+      line-height: 1.55;
+      background: #fff;
+    }
+
+    h1, h2, h3 { page-break-after: avoid; }
+    .page-break { page-break-before: always; }
+
+    .cover {
+      min-height: 240mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 18mm 4mm 10mm;
+      background:
+        linear-gradient(160deg, #123b2d 0%, #1d5c45 45%, #2d7a5d 100%);
+      color: #fff;
+      border-radius: 12px;
+    }
+    .cover-badge {
+      display: inline-block;
+      background: var(--lime);
+      color: #133b2a;
+      font-weight: 800;
+      font-size: 10pt;
+      padding: 6px 12px;
+      border-radius: 999px;
+    }
+    .cover h1 {
+      margin: 28px 0 10px;
+      font-size: 28pt;
+      line-height: 1.2;
+      font-weight: 900;
+    }
+    .cover p.lead {
+      font-size: 13pt;
+      max-width: 150mm;
+      opacity: 0.95;
+    }
+    .cover-meta {
+      border-top: 1px solid rgba(255,255,255,.25);
+      padding-top: 14px;
+      font-size: 10pt;
+      opacity: .9;
+    }
+
+    .toc {
+      margin-top: 18px;
+    }
+    .toc h2 {
+      color: var(--green);
+      font-size: 16pt;
+      margin-bottom: 10px;
+    }
+    .toc ol {
+      padding-left: 20px;
+    }
+    .toc li {
+      margin: 6px 0;
+    }
+
+    h2.section {
+      margin: 0 0 8px;
+      padding-bottom: 6px;
+      border-bottom: 3px solid var(--green);
+      color: var(--green);
+      font-size: 16pt;
+    }
+    .screen-tag {
+      display: inline-block;
+      background: var(--green-soft);
+      color: var(--green);
+      font-weight: 700;
+      font-size: 9pt;
+      padding: 3px 8px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin: 10px 0;
+    }
+    .card h3 {
+      margin: 0 0 6px;
+      font-size: 12pt;
+      color: var(--green);
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    ul.steps {
+      margin: 6px 0;
+      padding-left: 18px;
+    }
+    ul.steps li { margin: 4px 0; }
+    .note {
+      background: #fff8e8;
+      border-left: 4px solid #f0b46a;
+      padding: 10px 12px;
+      margin: 10px 0;
+      border-radius: 0 8px 8px 0;
+    }
+    .tip {
+      background: #eef8ff;
+      border-left: 4px solid #2a86bd;
+      padding: 10px 12px;
+      margin: 10px 0;
+      border-radius: 0 8px 8px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 14px;
+      font-size: 10pt;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: var(--green);
+      color: #fff;
+    }
+    tr:nth-child(even) td { background: #f8fbf8; }
+    .muted { color: var(--muted); }
+    .footer-note {
+      margin-top: 18px;
+      font-size: 9.5pt;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+    }
+    strong { color: #123b2d; }
+  </style>
+</head>
+<body>
+
+  <!-- COVER -->
+  <section class="cover">
+    <div>
+      <span class="cover-badge">Tài liệu hướng dẫn sử dụng</span>
+      <h1>Sổ tay điện tử<br/>Diện Chẩn</h1>
+      <p class="lead">
+        Giải thích và hướng dẫn thao tác từng màn hình trong ứng dụng —
+        từ lúc mở app đến khi hoàn thành một phiên sử dụng.
+      </p>
+    </div>
+    <div class="cover-meta">
+      <div>Đối tượng: Khách hàng / Người dùng demo / Đội vận hành</div>
+      <div>Phiên bản tài liệu: Demo UI — Tháng 9/2026</div>
+      <div>Lưu ý: Ứng dụng hỗ trợ thực hành Diện Chẩn, không thay thế khám chữa bệnh.</div>
+    </div>
+  </section>
+
+  <!-- TOC -->
+  <section class="toc page-break">
+    <h2>Mục lục</h2>
+    <ol>
+      <li>Tổng quan ứng dụng</li>
+      <li>Màn hình Onboarding (lần đầu mở app)</li>
+      <li>Thanh điều hướng dưới</li>
+      <li>Trang chủ</li>
+      <li>Thông báo</li>
+      <li>Camera / Ảnh gương mặt</li>
+      <li>Giới thiệu</li>
+      <li>Dụng cụ &amp; Khóa học</li>
+      <li>Huyệt (Tra Huyệt)</li>
+      <li>Phác đồ</li>
+      <li>Đồ hình</li>
+      <li>Tra cứu (danh mục bệnh)</li>
+      <li>Chi tiết bệnh &amp; bắt đầu phiên</li>
+      <li>Gói Premium</li>
+      <li>Kết nối cộng đồng</li>
+      <li>Hồ sơ cá nhân</li>
+      <li>Quy trình dùng mẫu (7–10 phút)</li>
+    </ol>
+  </section>
+
+  <!-- 1 -->
+  <section class="page-break">
+    <h2 class="section">1. Tổng quan ứng dụng</h2>
+    <p>
+      <strong>Sổ tay điện tử Diện Chẩn</strong> giúp người dùng:
+      tra cứu bệnh/huyệt/phác đồ, xem vị trí điểm trên mặt (trước &amp; nghiêng),
+      thực hành theo phiên, kết nối cộng đồng, và tiếp cận nội dung giáo dục.
+    </p>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Người dùng chính</h3>
+        <ul class="steps">
+          <li>Người mới tìm hiểu Diện Chẩn</li>
+          <li>Học viên / người tự chăm sóc</li>
+          <li>Giảng viên demo trên lớp</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Giá trị cốt lõi</h3>
+        <ul class="steps">
+          <li>Tìm đúng bệnh → đúng huyệt</li>
+          <li>Nhìn vị trí trực quan trên mặt</li>
+          <li>Bắt đầu phiên day có hướng dẫn</li>
+          <li>Mở rộng bằng gói Premium</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note">
+      <strong>An toàn:</strong> App chỉ hỗ trợ tham khảo và thực hành.
+      Nếu triệu chứng kéo dài hoặc nặng, cần đến cơ sở y tế.
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="page-break">
+    <h2 class="section">2. Màn hình Onboarding</h2>
+    <span class="screen-tag">Màn hình mở đầu</span>
+    <div class="card">
+      <h3>Giải thích</h3>
+      <p>
+        Là chuỗi slide giới thiệu ngắn khi mở app lần đầu: app làm gì,
+        cách tra cứu, và giá trị kết nối cộng đồng.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Cách dùng</h3>
+      <ul class="steps">
+        <li>Vuốt hoặc đợi slide tự chuyển (khoảng 3 giây/slide).</li>
+        <li>Đọc nhanh 3 thông điệp chính.</li>
+        <li>Bấm <strong>Sử dụng app</strong> để vào trang chủ.</li>
+      </ul>
+    </div>
+    <div class="tip">
+      <strong>Tip demo khách:</strong> Chỉ cần dừng 10–15 giây ở đây rồi vào app ngay.
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section>
+    <h2 class="section">3. Thanh điều hướng dưới</h2>
+    <span class="screen-tag">Luôn hiện ở hầu hết màn hình chính</span>
+    <table>
+      <thead>
+        <tr>
+          <th>Thành phần</th>
+          <th>Giải thích</th>
+          <th>Cách dùng</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Trang chủ</strong></td>
+          <td>Trung tâm lối tắt &amp; chức năng chính</td>
+          <td>Bấm để về màn tổng quan</td>
+        </tr>
+        <tr>
+          <td><strong>Tra cứu</strong></td>
+          <td>Danh mục bệnh / phác đồ / huyệt</td>
+          <td>Bấm để tìm theo triệu chứng hoặc danh mục</td>
+        </tr>
+        <tr>
+          <td><strong>Nút Camera (giữa)</strong></td>
+          <td>Chụp/chọn ảnh mặt để phủ huyệt</td>
+          <td>Bấm nút xanh giữa thanh dưới</td>
+        </tr>
+        <tr>
+          <td><strong>Kết nối</strong></td>
+          <td>Bạn bè, nhóm, mã QR</td>
+          <td>Bấm để quản lý kết nối cộng đồng</td>
+        </tr>
+        <tr>
+          <td><strong>Hồ sơ</strong></td>
+          <td>Thống kê &amp; cài đặt tài khoản</td>
+          <td>Bấm để xem thông tin cá nhân</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 4 -->
+  <section class="page-break">
+    <h2 class="section">4. Trang chủ</h2>
+    <span class="screen-tag">Tab Trang chủ</span>
+    <div class="card">
+      <h3>Giải thích</h3>
+      <p>
+        Đây là “bảng điều khiển” của app: banner nổi bật, lối tắt nhanh,
+        và các chức năng chính (Huyệt / Phác đồ / Đồ hình).
+      </p>
+    </div>
+    <div class="card">
+      <h3>Thành phần trên màn</h3>
+      <ul class="steps">
+        <li><strong>Chuông thông báo</strong> (góc trên): xem nhắc nhở &amp; cập nhật.</li>
+        <li><strong>Banner</strong>: nội dung nổi bật, tự chuyển slide.</li>
+        <li><strong>3 icon tròn</strong>: Dụng cụ · Khóa học · Giới thiệu.</li>
+        <li><strong>Các chức năng chính</strong>: Huyệt · Phác đồ · Đồ hình.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Cách dùng</h3>
+      <ul class="steps">
+        <li>Vuốt banner để xem nội dung khác (hoặc để tự chạy).</li>
+        <li>Bấm icon <strong>Giới thiệu</strong> để đọc bài về Diện Chẩn.</li>
+        <li>Bấm <strong>Huyệt / Phác đồ / Đồ hình</strong> để vào đúng phân hệ.</li>
+        <li>Bấm chuông để xem danh sách thông báo.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section>
+    <h2 class="section">5. Thông báo</h2>
+    <span class="screen-tag">Từ chuông trên Trang chủ</span>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Giải thích</h3>
+        <p>
+          Tập trung các nhắc nhở: giờ day huyệt, cập nhật phác đồ,
+          cảnh báo an toàn, hoạt động cộng đồng.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Cách dùng</h3>
+        <ul class="steps">
+          <li>Lọc: Tất cả / Chưa đọc / Đã đọc.</li>
+          <li>Bấm một dòng để xem nội dung (đánh dấu đã đọc).</li>
+          <li>Theo dõi badge số chưa đọc trên chuông trang chủ.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="page-break">
+    <h2 class="section">6. Camera / Ảnh gương mặt</h2>
+    <span class="screen-tag">Nút camera giữa thanh dưới</span>
+    <div class="card">
+      <h3>Giải thích</h3>
+      <p>
+        Cho phép lấy ảnh mặt (selfie hoặc thư viện) để phủ lưới/huyệt lên
+        gương mặt thật — hỗ trợ định vị trực quan khi thực hành.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Cách dùng</h3>
+      <ul class="steps">
+        <li>Bấm nút camera xanh ở giữa thanh dưới.</li>
+        <li>Chọn <strong>Chụp ảnh</strong> (camera trước) hoặc <strong>Chọn từ thư viện</strong>.</li>
+        <li>App mở Tra Huyệt với ảnh đã chọn + lưới/điểm.</li>
+        <li>Muốn về ảnh mẫu: bấm <strong>Ảnh mẫu</strong> trên màn Tra Huyệt.</li>
+      </ul>
+    </div>
+    <div class="note">
+      Trên trình duyệt web, camera có thể bị hạn chế quyền.
+      Nếu lỗi, hãy dùng ảnh từ thư viện.
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section>
+    <h2 class="section">7. Giới thiệu</h2>
+    <span class="screen-tag">Icon sách cam trên Trang chủ</span>
+    <div class="card">
+      <h3>Giải thích</h3>
+      <p>
+        Kho bài viết giáo dục / thương hiệu phương pháp:
+        giới thiệu Diện Chẩn, thầy Bùi Quốc Châu, thầy Bùi Minh Tâm.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Cách dùng</h3>
+      <ul class="steps">
+        <li>Từ Trang chủ, bấm icon <strong>Giới thiệu</strong>.</li>
+        <li>Chọn một thẻ bài viết.</li>
+        <li>Cuộn đọc nội dung; bấm mũi tên Back để quay lại danh sách.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section class="page-break">
+    <h2 class="section">8. Dụng cụ &amp; Khóa học</h2>
+    <span class="screen-tag">2 icon tròn còn lại trên Trang chủ</span>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Dụng cụ</h3>
+        <p class="muted">Catalog dụng cụ thực hành Diện Chẩn.</p>
+        <ul class="steps">
+          <li>Bấm icon giỏ hàng / Dụng cụ.</li>
+          <li>Vuốt xem danh sách: que dò, lăn, búa…</li>
+          <li>Dùng để giới thiệu bộ dụng cụ chuẩn khi demo.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Khóa học</h3>
+        <p class="muted">Đăng ký học &amp; thông tin trung tâm.</p>
+        <ul class="steps">
+          <li>Bấm icon mũ tốt nghiệp / Khóa học.</li>
+          <li>Xem thông tin trung tâm.</li>
+          <li>Nhập họ tên + SĐT → bấm <strong>Đăng ký khóa học</strong>.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section>
+    <h2 class="section">9. Huyệt (Tra Huyệt)</h2>
+    <span class="screen-tag">Trang chủ → Huyệt</span>
+    <div class="card">
+      <h3>Giải thích</h3>
+      <p>
+        Module định vị điểm huyệt trên mặt. Có mặt trước/nghiêng,
+        lưới tọa độ, nhãn mã huyệt, tìm theo số, và hỗ trợ ảnh mặt thật.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Cách dùng</h3>
+      <ul class="steps">
+        <li>Vào <strong>Huyệt</strong> từ trang chủ.</li>
+        <li>Dùng nút <strong>&lt;&lt; / &gt;&gt;</strong> hoặc chuyển đồ hình (H.1 / mặt nghiêng…).</li>
+        <li>Bật điểm / lưới / xem tất cả huyệt để quan sát toàn bộ.</li>
+        <li>Bấm <strong>Tìm Huyệt</strong> → nhập mã số → <strong>Tìm</strong>.</li>
+        <li>Bấm <strong>Thêm...</strong> nếu cần thao tác bổ sung (demo).</li>
+      </ul>
+    </div>
+    <div class="tip">
+      <strong>Mẹo:</strong> Kết hợp Camera trước khi vào Huyệt để học viên thấy điểm trên mặt thật.
+    </div>
+  </section>
+
+  <!-- 10 -->
+  <section class="page-break">
+    <h2 class="section">10. Phác đồ</h2>
+    <span class="screen-tag">Trang chủ → Phác đồ</span>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Giải thích</h3>
+        <p>
+          Danh sách công thức day theo mục tiêu (cơ bản / nâng cao),
+          mỗi phác đồ gồm chuỗi huyệt thực hiện theo bước.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Cách dùng</h3>
+        <ul class="steps">
+          <li>Chọn bộ lọc: Tất cả / Cơ bản / Nâng cao.</li>
+          <li>Bấm một phác đồ để xem các bước huyệt.</li>
+          <li>Thực hiện theo thứ tự bước được liệt kê.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section>
+    <h2 class="section">11. Đồ hình</h2>
+    <span class="screen-tag">Trang chủ → Đồ hình</span>
+    <div class="card">
+      <h3>Giải thích</h3>
+      <p>
+        Các bản đồ phản chiếu chuyên biệt ngoài mặt chuẩn:
+        trắc diện, trên đầu, tai–gáy, lưng trên mặt…
+      </p>
+    </div>
+    <div class="card">
+      <h3>Cách dùng</h3>
+      <ul class="steps">
+        <li>Mở danh sách đồ hình.</li>
+        <li>Chọn một đồ hình để xem ảnh minh họa.</li>
+        <li>Dùng khi giảng về các hệ phản chiếu khác nhau.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="page-break">
+    <h2 class="section">12. Tra cứu (danh mục bệnh)</h2>
+    <span class="screen-tag">Tab Tra cứu</span>
+    <div class="card">
+      <h3>Giải thích</h3>
+      <p>
+        Đây là trái tim nghiệp vụ: tìm theo ô search hoặc duyệt
+        <strong>Danh mục phổ biến</strong>, rồi xem danh sách bệnh kèm huyệt và thời gian.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Các danh mục</h3>
+      <p>
+        Tổng quát · Hệ cơ xương khớp · Hệ da · Tai mũi họng · Hệ hô hấp ·
+        Nhãn khoa · Hệ tiêu hóa · Hệ thần kinh · Bệnh mãn tính ·
+        Hệ tim mạch · Hệ tiết niệu sinh dục
+      </p>
+    </div>
+    <div class="card">
+      <h3>Cách dùng</h3>
+      <ul class="steps">
+        <li>Vào tab <strong>Tra cứu</strong>.</li>
+        <li>(Tuỳ chọn) nhập từ khóa vào ô tìm kiếm hoặc bấm mic (demo giọng nói).</li>
+        <li>Vuốt hàng danh mục → bấm 1 danh mục để lọc.</li>
+        <li>Bấm lại danh mục đang chọn để bỏ lọc (xem tất cả).</li>
+        <li>Chọn một bệnh trong mục <strong>Khám phá</strong>.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 13 -->
+  <section>
+    <h2 class="section">13. Chi tiết bệnh &amp; bắt đầu phiên</h2>
+    <span class="screen-tag">Từ Tra cứu → chọn bệnh (không phải Premium)</span>
+    <div class="card">
+      <h3>Giải thích</h3>
+      <p>
+        Màn hướng dẫn thực hành cho một bệnh cụ thể: bản đồ mặt trước + nghiêng,
+        danh sách mã huyệt, chống chỉ định, tác dụng, và nút bắt đầu phiên.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Cách dùng</h3>
+      <ul class="steps">
+        <li>Quan sát điểm trên <strong>mặt trước</strong> và <strong>mặt nghiêng</strong>.</li>
+        <li>Bấm <strong>Tất cả</strong> để xem tổng quan, hoặc bấm từng mã huyệt.</li>
+        <li>Đọc <strong>Chống chỉ định</strong> trước khi day.</li>
+        <li>Đọc <strong>Tác dụng</strong> của huyệt đang chọn.</li>
+        <li>Bấm <strong>Xem</strong> để mở Tra Huyệt nếu cần soi vị trí kỹ hơn.</li>
+        <li>Bấm <strong>Bắt đầu phiên</strong> để khởi động phiên day (demo).</li>
+      </ul>
+    </div>
+    <div class="tip">
+      <strong>Logic mặt nghiêng:</strong> mũi nằm bên trái khung hình, tai nằm bên phải.
+      Huyệt gần tai sẽ hiện về phía phải ảnh nghiêng — đây là góc nhìn đúng khi xoay mặt.
+    </div>
+  </section>
+
+  <!-- 14 -->
+  <section class="page-break">
+    <h2 class="section">14. Gói Premium</h2>
+    <span class="screen-tag">Bệnh có mác Premium trong Tra cứu</span>
+    <div class="card">
+      <h3>Giải thích</h3>
+      <p>
+        Một số bệnh thuộc <strong>nhóm nội dung trong gói Premium</strong>
+        (không phải vì “khó/nặng”). Có mác khóa hồng và chỉ xem đầy đủ khi nâng cấp.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Cách dùng</h3>
+      <ul class="steps">
+        <li>Nhận diện thẻ có badge <strong>Premium</strong> + icon khóa.</li>
+        <li>Bấm thẻ → hiện sheet “Nội dung Premium”.</li>
+        <li>Đọc quyền lợi gói → bấm <strong>Nâng cấp gói Premium</strong> (demo ghi nhận yêu cầu).</li>
+        <li>Hoặc bấm <strong>Để sau</strong> để đóng.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 15 -->
+  <section>
+    <h2 class="section">15. Kết nối cộng đồng</h2>
+    <span class="screen-tag">Tab Kết nối</span>
+    <div class="card">
+      <h3>Giải thích</h3>
+      <p>
+        Không gian kết nối bạn bè và nhóm chuyên gia/cộng đồng qua mã ID và QR.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Cách dùng</h3>
+      <ul class="steps">
+        <li>Xem thẻ <strong>Bạn bè</strong> / <strong>Nhóm cộng đồng</strong>.</li>
+        <li>Bấm thẻ để xem danh sách kết nối.</li>
+        <li>Bấm dấu <strong>+</strong> (hoặc QR) để mở thao tác quét/hiển thị mã.</li>
+        <li>Dùng <strong>QR của tôi</strong> để người khác quét kết nối.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 16 -->
+  <section class="page-break">
+    <h2 class="section">16. Hồ sơ cá nhân</h2>
+    <span class="screen-tag">Tab Hồ sơ</span>
+    <div class="card">
+      <h3>Giải thích</h3>
+      <p>
+        Tổng hợp hành trình cá nhân: thống kê thực hành, QR, và các mục quản lý tài khoản.
+      </p>
+    </div>
+    <div class="card">
+      <h3>Các khối chính</h3>
+      <ul class="steps">
+        <li><strong>Thống kê:</strong> Buổi day huyệt · Lượt tra cứu · Phác đồ lưu.</li>
+        <li><strong>QR của tôi:</strong> chia sẻ mã kết nối.</li>
+        <li><strong>Tuỳ chọn:</strong> chỉnh sửa hồ sơ, bảo mật, thông báo, trợ giúp, đăng xuất.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Cách dùng</h3>
+      <ul class="steps">
+        <li>Vào tab Hồ sơ để xem tiến độ sử dụng.</li>
+        <li>Bấm QR để phóng lớn / chia sẻ khi cần.</li>
+        <li>Dùng các mục dưới cùng để quản lý tài khoản (theo demo hiện có).</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 17 -->
+  <section>
+    <h2 class="section">17. Quy trình dùng mẫu (7–10 phút)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Bước</th>
+          <th>Màn hình</th>
+          <th>Việc cần làm</th>
+          <th>Thời gian</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Onboarding → Trang chủ</td>
+          <td>Vào app, chỉ banner + chức năng chính</td>
+          <td>~1’</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Giới thiệu</td>
+          <td>Mở 1 bài viết ngắn</td>
+          <td>~30”</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Tra cứu</td>
+          <td>Chọn danh mục → mở bệnh thường</td>
+          <td>~2’</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Chi tiết bệnh</td>
+          <td>Chọn huyệt, xem mặt trước/nghiêng, bắt đầu phiên</td>
+          <td>~2’</td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Premium</td>
+          <td>Bấm bệnh Premium → giải thích nâng cấp gói</td>
+          <td>~30”</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>Camera + Huyệt</td>
+          <td>Phủ huyệt lên ảnh mặt</td>
+          <td>~1’</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td>Kết nối + Hồ sơ</td>
+          <td>Chỉ QR, thống kê, đóng demo</td>
+          <td>~1’</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer-note">
+      Tài liệu này mô tả bản demo UI hiện tại của dự án
+      <strong>Sổ tay điện tử Diện Chẩn</strong>.
+      Nội dung phác đồ mang tính minh họa; khi triển khai chính thức cần được
+      chuyên gia thẩm định và bổ sung dữ liệu đầy đủ.
+      <br/><br/>
+      © 2026 — Tài liệu hướng dẫn sử dụng cho khách hàng
+    </div>
+  </section>
+
+</body>
+</html>

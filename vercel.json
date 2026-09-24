@@ -1,0 +1,10 @@
+{
+  "public": true,
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/mobile/web/$1"
+    }
+  ]
+}

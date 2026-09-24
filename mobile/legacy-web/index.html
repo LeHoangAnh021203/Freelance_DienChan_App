@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Diện Chẩn Sức Khỏe</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" id="greeting">Chào buổi sáng</p>
+          <h1 id="screenTitle">Diện Chẩn</h1>
+        </div>
+        <button class="avatar" type="button" data-action="open-settings" aria-label="Mở cài đặt">L</button>
+      </header>
+
+      <main id="app" class="screen" aria-live="polite"></main>
+
+      <nav class="tabbar" aria-label="Điều hướng chính">
+        <button class="tab active" type="button" data-tab="home">
+          <span class="tab-icon">⌂</span>
+          <span>Trang chủ</span>
+        </button>
+        <button class="tab" type="button" data-tab="lookup">
+          <span class="tab-icon">⌕</span>
+          <span>Tra cứu</span>
+        </button>
+        <button class="tab" type="button" data-tab="connect">
+          <span class="tab-icon">◎</span>
+          <span>Kết nối</span>
+        </button>
+        <button class="tab" type="button" data-tab="profile">
+          <span class="tab-icon">◉</span>
+          <span>Cá nhân</span>
+        </button>
+      </nav>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>

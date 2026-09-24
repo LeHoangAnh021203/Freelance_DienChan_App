@@ -1,0 +1,5 @@
+.DS_Store
+.local-server.pid
+backend/
+docs/
+infra/

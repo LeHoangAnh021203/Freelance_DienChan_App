@@ -1,0 +1,604 @@
+{
+  "catalog": {
+    "acupoints": [
+      {
+        "hinh_anh": "/assets/acupoints/huyet_26.png",
+        "dung_cu_goi_y": [
+          "dc_cay_lan",
+          "dc_que_do"
+        ],
+        "id": "huyet_26",
+        "so": 26,
+        "ten": "Huyệt 26",
+        "cong_dung": [
+          "an thần",
+          "hạ áp",
+          "giảm căng thẳng"
+        ],
+        "vi_tri_mo_ta": "Giữa trán, trên đường dọc giữa mặt.",
+        "cach_tac_dong": "Day tròn nhẹ 60 giây, thở chậm.",
+        "x": 0.5,
+        "y": 0.3
+      },
+      {
+        "hinh_anh": "/assets/acupoints/huyet_124.png",
+        "dung_cu_goi_y": [
+          "dc_cay_lan",
+          "dc_que_do"
+        ],
+        "id": "huyet_124",
+        "so": 124,
+        "ten": "Huyệt 124",
+        "cong_dung": [
+          "dễ ngủ",
+          "giảm stress",
+          "an thần"
+        ],
+        "vi_tri_mo_ta": "Vùng giữa trán, thấp hơn huyệt 26.",
+        "cach_tac_dong": "Dùng đầu ngón tay day tròn vừa phải.",
+        "x": 0.5,
+        "y": 0.38
+      },
+      {
+        "hinh_anh": "/assets/acupoints/huyet_34.png",
+        "dung_cu_goi_y": [
+          "dc_cay_lan",
+          "dc_que_do"
+        ],
+        "id": "huyet_34",
+        "so": 34,
+        "ten": "Huyệt 34",
+        "cong_dung": [
+          "hạ áp",
+          "giảm đau đầu"
+        ],
+        "vi_tri_mo_ta": "Hai bên thái dương.",
+        "cach_tac_dong": "Day theo vòng tròn, lực nhẹ.",
+        "x": 0.26,
+        "y": 0.38
+      },
+      {
+        "hinh_anh": "/assets/acupoints/huyet_61.png",
+        "dung_cu_goi_y": [
+          "dc_cay_lan",
+          "dc_que_do"
+        ],
+        "id": "huyet_61",
+        "so": 61,
+        "ten": "Huyệt 61",
+        "cong_dung": [
+          "trị ho",
+          "viêm họng",
+          "hô hấp"
+        ],
+        "vi_tri_mo_ta": "Vùng nhân trung.",
+        "cach_tac_dong": "Ấn nhẹ từng nhịp 30-60 giây.",
+        "x": 0.5,
+        "y": 0.58
+      },
+      {
+        "hinh_anh": "/assets/acupoints/huyet_19.png",
+        "dung_cu_goi_y": [
+          "dc_cay_lan",
+          "dc_que_do"
+        ],
+        "id": "huyet_19",
+        "so": 19,
+        "ten": "Huyệt 19",
+        "cong_dung": [
+          "bổ phế",
+          "thông mũi",
+          "trị ho"
+        ],
+        "vi_tri_mo_ta": "Vùng cằm giữa.",
+        "cach_tac_dong": "Day đều, tránh làm đau da.",
+        "x": 0.5,
+        "y": 0.73
+      },
+      {
+        "hinh_anh": "/assets/acupoints/huyet_50.png",
+        "dung_cu_goi_y": [
+          "dc_cay_lan",
+          "dc_que_do"
+        ],
+        "id": "huyet_50",
+        "so": 50,
+        "ten": "Huyệt 50",
+        "cong_dung": [
+          "tiêu hóa",
+          "đầy bụng",
+          "ăn ngon"
+        ],
+        "vi_tri_mo_ta": "Vùng má phải theo đồ hình.",
+        "cach_tac_dong": "Lăn hoặc day 1 phút.",
+        "x": 0.72,
+        "y": 0.57
+      }
+    ],
+    "conditions": [
+      {
+        "mo_ta": "Khó vào giấc, ngủ không sâu hoặc trằn trọc kéo dài.",
+        "id": "benh_mat_ngu",
+        "loai": "benh",
+        "ten": "Mất ngủ",
+        "nhom": "thần kinh",
+        "tu_khoa": [
+          "mất ngủ",
+          "khó ngủ",
+          "trằn trọc",
+          "khó vào giấc",
+          "ngủ không sâu"
+        ],
+        "phac_do_ids": [
+          "pd_mat_ngu"
+        ],
+        "co_nguy_hiem": false
+      },
+      {
+        "mo_ta": "Cảm giác nhức, căng hoặc váng vùng đầu.",
+        "id": "trc_dau_dau",
+        "loai": "trieu_chung",
+        "ten": "Đau đầu",
+        "nhom": "thần kinh",
+        "tu_khoa": [
+          "đau đầu",
+          "nhức đầu",
+          "váng đầu",
+          "căng đầu"
+        ],
+        "phac_do_ids": [
+          "pd_dau_dau"
+        ],
+        "co_nguy_hiem": false
+      },
+      {
+        "mo_ta": "Tình trạng huyết áp cao hoặc choáng cần được theo dõi y tế.",
+        "id": "benh_tang_huyet_ap",
+        "loai": "benh",
+        "ten": "Tăng huyết áp nặng",
+        "nhom": "tim mạch",
+        "tu_khoa": [
+          "cao huyết áp",
+          "tăng xông",
+          "choáng",
+          "huyết áp cao"
+        ],
+        "phac_do_ids": [
+          "pd_ha_ap_ho_tro"
+        ],
+        "co_nguy_hiem": true
+      },
+      {
+        "mo_ta": "Cảm giác no hơi, khó tiêu hoặc đầy vùng bụng sau ăn.",
+        "id": "trc_day_bung",
+        "loai": "trieu_chung",
+        "ten": "Đầy bụng",
+        "nhom": "tiêu hóa",
+        "tu_khoa": [
+          "đầy bụng",
+          "khó tiêu",
+          "ăn không tiêu",
+          "no hơi"
+        ],
+        "phac_do_ids": [
+          "pd_tieu_hoa"
+        ],
+        "co_nguy_hiem": false
+      }
+    ],
+    "protocols": [
+      {
+        "id": "pd_mat_ngu",
+        "ten": "Mất ngủ, khó vào giấc",
+        "benh_ids": [
+          "benh_mat_ngu"
+        ],
+        "thoi_diem": "Làm tối",
+        "thoi_luong_phut": 8,
+        "muc_canh_bao": "luu_y",
+        "buoc": [
+          {
+            "thu_tu": 1,
+            "huyet_id": "huyet_124",
+            "huong_dan": "Day tròn giữa trán, ấn nhẹ vừa phải.",
+            "thoi_luong_giay": 60
+          },
+          {
+            "thu_tu": 2,
+            "huyet_id": "huyet_34",
+            "huong_dan": "Day hai bên thái dương theo chiều kim đồng hồ.",
+            "thoi_luong_giay": 60
+          },
+          {
+            "thu_tu": 3,
+            "huyet_id": "huyet_26",
+            "huong_dan": "Ấn nhẹ và thở chậm để thư giãn.",
+            "thoi_luong_giay": 60
+          }
+        ]
+      },
+      {
+        "id": "pd_dau_dau",
+        "ten": "Đau đầu, căng vùng trán",
+        "benh_ids": [
+          "trc_dau_dau"
+        ],
+        "thoi_diem": "Khi khó chịu",
+        "thoi_luong_phut": 5,
+        "muc_canh_bao": "thuong",
+        "buoc": [
+          {
+            "thu_tu": 1,
+            "huyet_id": "huyet_34",
+            "huong_dan": "Day thái dương 1 phút mỗi bên.",
+            "thoi_luong_giay": 60
+          },
+          {
+            "thu_tu": 2,
+            "huyet_id": "huyet_26",
+            "huong_dan": "Day vùng trán nhẹ, dừng nếu chóng mặt.",
+            "thoi_luong_giay": 60
+          }
+        ]
+      },
+      {
+        "id": "pd_ha_ap_ho_tro",
+        "ten": "Hỗ trợ khi huyết áp cao",
+        "benh_ids": [
+          "benh_tang_huyet_ap"
+        ],
+        "thoi_diem": "Chỉ hỗ trợ",
+        "thoi_luong_phut": 3,
+        "muc_canh_bao": "di_kham_ngay",
+        "buoc": [
+          {
+            "thu_tu": 1,
+            "huyet_id": "huyet_34",
+            "huong_dan": "Ngồi nghỉ, day nhẹ thái dương. Không thay thuốc.",
+            "thoi_luong_giay": 45
+          }
+        ]
+      },
+      {
+        "id": "pd_tieu_hoa",
+        "ten": "Đầy bụng, khó tiêu",
+        "benh_ids": [
+          "trc_day_bung"
+        ],
+        "thoi_diem": "Sau ăn 30 phút",
+        "thoi_luong_phut": 4,
+        "muc_canh_bao": "thuong",
+        "buoc": [
+          {
+            "thu_tu": 1,
+            "huyet_id": "huyet_50",
+            "huong_dan": "Day hoặc lăn nhẹ vùng má theo đồ hình.",
+            "thoi_luong_giay": 60
+          }
+        ]
+      }
+    ],
+    "reflexMaps": [
+      {
+        "id": "dohinh_mat_truoc",
+        "ten": "Mặt nhìn thẳng",
+        "anh_nen": "/assets/reflex-maps/mat-nhin-thang.png",
+        "kich_thuoc": {
+          "w": 200,
+          "h": 260
+        }
+      }
+    ],
+    "touchPoints": [
+      {
+        "do_hinh_id": "dohinh_mat_truoc",
+        "huyet_id": "huyet_26",
+        "x": 0.5,
+        "y": 0.3,
+        "ban_kinh_cham": 0.075
+      },
+      {
+        "do_hinh_id": "dohinh_mat_truoc",
+        "huyet_id": "huyet_124",
+        "x": 0.5,
+        "y": 0.38,
+        "ban_kinh_cham": 0.075
+      },
+      {
+        "do_hinh_id": "dohinh_mat_truoc",
+        "huyet_id": "huyet_34",
+        "x": 0.26,
+        "y": 0.38,
+        "ban_kinh_cham": 0.075
+      },
+      {
+        "do_hinh_id": "dohinh_mat_truoc",
+        "huyet_id": "huyet_61",
+        "x": 0.5,
+        "y": 0.58,
+        "ban_kinh_cham": 0.075
+      },
+      {
+        "do_hinh_id": "dohinh_mat_truoc",
+        "huyet_id": "huyet_19",
+        "x": 0.5,
+        "y": 0.73,
+        "ban_kinh_cham": 0.075
+      },
+      {
+        "do_hinh_id": "dohinh_mat_truoc",
+        "huyet_id": "huyet_50",
+        "x": 0.72,
+        "y": 0.57,
+        "ban_kinh_cham": 0.075
+      }
+    ],
+    "principles": [
+      {
+        "id": "np_dong_ung",
+        "ten": "Nguyên lý Đồng ứng",
+        "noi_dung": "Các vùng trên mặt có thể được dùng như điểm phản chiếu tương ứng với vùng cơ thể. Trong app, nguyên lý này giúp giải thích vì sao một phác đồ chọn nhóm huyệt nhất định.",
+        "hinh_anh": [
+          "/assets/principles/dong-ung.png"
+        ]
+      },
+      {
+        "id": "np_phan_chieu",
+        "ten": "Nguyên lý Phản chiếu",
+        "noi_dung": "Đồ hình phản chiếu biến ảnh tĩnh thành bản đồ chạm được. Mỗi huyệt có tọa độ x/y theo tỉ lệ 0-1 để co giãn trên mọi màn hình.",
+        "hinh_anh": [
+          "/assets/principles/phan-chieu.png"
+        ]
+      },
+      {
+        "id": "np_day_an",
+        "ten": "Nguyên lý Day ấn",
+        "noi_dung": "Tác động nên nhẹ, đều, có thời lượng rõ ràng. Người dùng cần dừng lại khi đau, chóng mặt hoặc có dấu hiệu bất thường.",
+        "hinh_anh": []
+      }
+    ],
+    "tools": [
+      {
+        "id": "dc_cay_lan",
+        "ten": "Cây lăn",
+        "cong_dung": "Lăn nhẹ trên vùng mặt để tác động đều, phù hợp với các bước cần kích thích diện rộng.",
+        "cach_dung": "Lăn chậm 30-60 giây, lực vừa phải, tránh vùng da đau hoặc tổn thương.",
+        "hinh_anh": "/assets/tools/cay-lan.png"
+      },
+      {
+        "id": "dc_que_do",
+        "ten": "Que dò",
+        "cong_dung": "Tìm và tác động điểm huyệt chính xác hơn bằng đầu nhỏ.",
+        "cach_dung": "Ấn nhẹ từng nhịp, tăng lực từ từ, không ấn mạnh gây đau.",
+        "hinh_anh": "/assets/tools/que-do.png"
+      },
+      {
+        "id": "dc_bua_go",
+        "ten": "Búa gõ",
+        "cong_dung": "Gõ nhẹ theo nhịp trên vùng được hướng dẫn trong phác đồ.",
+        "cach_dung": "Gõ rất nhẹ, đều tay, dừng ngay nếu khó chịu.",
+        "hinh_anh": "/assets/tools/bua-go.png"
+      }
+    ]
+  },
+  "settings": {
+    "layout": "grid",
+    "font": "normal",
+    "tileOrder": [
+      "symptom",
+      "protocol",
+      "map",
+      "journal"
+    ],
+    "presets": [],
+    "cloud": false,
+    "reminders": true,
+    "privacyAcknowledged": false
+  },
+  "journals": [],
+  "productSpec": {
+    "source": "Dien_Chan_Data_PRD.docx",
+    "title": "DIỆN CHẨN Điều Khiển Liệu Pháp - Cấu trúc dữ liệu & Đặc tả sản phẩm",
+    "version": "Bản thảo v1.0",
+    "date": "Tháng 6, 2026",
+    "relationships": [
+      "Triệu chứng/Bệnh tham chiếu Phác đồ",
+      "Phác đồ tham chiếu danh sách Huyệt",
+      "Huyệt tham chiếu Điểm trên Đồ hình",
+      "Dụng cụ được gợi ý từ Huyệt",
+      "Bệnh án tham chiếu Phác đồ đã dùng và nhật ký cảm nhận"
+    ],
+    "sitemap": {
+      "home": [
+        "Tìm kiếm/giọng nói",
+        "Tra triệu chứng",
+        "Phác đồ chữa",
+        "Tra huyệt & đồ hình",
+        "Bệnh án của tôi",
+        "Dưỡng sinh hôm nay"
+      ],
+      "lookup": [
+        "Đồ hình trên mặt",
+        "Danh sách huyệt",
+        "Bệnh theo nhóm",
+        "Nguyên lý"
+      ],
+      "connect": [
+        "Hỏi đáp cộng đồng",
+        "Tìm chuyên gia/lớp học",
+        "Chia sẻ trải nghiệm"
+      ],
+      "profile": [
+        "Bệnh án",
+        "Đã lưu",
+        "Khóa học",
+        "Cài đặt"
+      ]
+    },
+    "screens": [
+      {
+        "id": "home",
+        "ten": "Trang chủ",
+        "muc_tieu": "Cho người dùng hiểu ngay nên bấm đâu trong 3 giây.",
+        "hanh_vi": [
+          "Ô tìm kiếm và micro",
+          "4 thẻ Tôi muốn",
+          "Dưỡng sinh hôm nay đổi nội dung mỗi ngày",
+          "Lời chào theo buổi"
+        ],
+        "truong_hop_dac_biet": [
+          "Chưa đăng nhập vẫn tra cứu được",
+          "Không có mạng vẫn dùng được tra cứu offline"
+        ]
+      },
+      {
+        "id": "search",
+        "ten": "Kết quả tìm kiếm",
+        "muc_tieu": "Trả kết quả phù hợp từ câu nói/gõ của người thường.",
+        "hanh_vi": [
+          "Tìm trên tu_khoa",
+          "Gộp kết quả theo Bệnh/Triệu chứng, Phác đồ, Huyệt",
+          "Cảnh báo đỏ nếu co_nguy_hiem"
+        ],
+        "truong_hop_dac_biet": [
+          "Không có kết quả thì gợi ý triệu chứng phổ biến và hỏi cộng đồng"
+        ]
+      },
+      {
+        "id": "protocols",
+        "ten": "Danh sách Phác đồ",
+        "muc_tieu": "Cho chọn phác đồ phù hợp với triệu chứng/bệnh.",
+        "hanh_vi": [
+          "Liệt kê tên, số huyệt, thời lượng, thời điểm",
+          "Sắp theo mức liên quan",
+          "Bấm vào chi tiết"
+        ],
+        "truong_hop_dac_biet": []
+      },
+      {
+        "id": "protocol_detail",
+        "ten": "Phác đồ chi tiết",
+        "muc_tieu": "Hướng dẫn người dùng tự làm được mà không cần học trước.",
+        "hanh_vi": [
+          "Header có badge",
+          "Banner đỏ khi di_kham_ngay",
+          "Bước theo thứ tự",
+          "Bắt đầu hướng dẫn",
+          "Lưu vào bệnh án"
+        ],
+        "truong_hop_dac_biet": [
+          "Bước đang làm phóng to và có thể đọc to",
+          "Cho phép bookmark"
+        ]
+      },
+      {
+        "id": "interactive_map",
+        "ten": "Đồ hình tương tác",
+        "muc_tieu": "Thay ảnh tĩnh khó nhìn bằng bản đồ chạm được.",
+        "hanh_vi": [
+          "Ảnh nền + điểm chạm",
+          "Chạm điểm hiện panel huyệt",
+          "Vùng chạm rộng",
+          "Hỗ trợ zoom"
+        ],
+        "truong_hop_dac_biet": [
+          "Mở từ phác đồ thì tự highlight đúng huyệt"
+        ]
+      },
+      {
+        "id": "acupoint_detail",
+        "ten": "Chi tiết huyệt",
+        "muc_tieu": "Trang tra cứu đầy đủ một huyệt.",
+        "hanh_vi": [
+          "Hiện số, tên, công dụng, vị trí, cách tác động, hình ảnh",
+          "Mở đồ hình tại đúng điểm",
+          "Liệt kê phác đồ dùng huyệt",
+          "Gợi ý dụng cụ"
+        ],
+        "truong_hop_dac_biet": []
+      },
+      {
+        "id": "medical_record",
+        "ten": "Bệnh án tổng quan",
+        "muc_tieu": "Tạo động lực qua việc thấy rõ sự cải thiện.",
+        "hanh_vi": [
+          "Chuỗi ngày",
+          "Tổng số buổi",
+          "Biểu đồ cảm nhận",
+          "Danh sách đang theo dõi",
+          "Ghi nhật ký hôm nay"
+        ],
+        "truong_hop_dac_biet": [
+          "Chưa có dữ liệu thì mời bắt đầu theo dõi vấn đề đầu tiên"
+        ]
+      },
+      {
+        "id": "quick_journal",
+        "ten": "Ghi nhật ký nhanh",
+        "muc_tieu": "Ghi xong trong khoảng 10 giây.",
+        "hanh_vi": [
+          "Chọn phác đồ",
+          "Chọn cảm nhận 1-4",
+          "Ghi chú không bắt buộc",
+          "Lưu cập nhật biểu đồ/streak"
+        ],
+        "truong_hop_dac_biet": []
+      },
+      {
+        "id": "settings_privacy",
+        "ten": "Cài đặt & Bảo mật",
+        "muc_tieu": "Cho người dùng kiểm soát trải nghiệm và dữ liệu.",
+        "hanh_vi": [
+          "Cỡ chữ",
+          "Đồng bộ cloud mặc định tắt",
+          "Chính sách bảo mật",
+          "Nhắc lịch"
+        ],
+        "truong_hop_dac_biet": [
+          "Lần đầu vào Bệnh án phải giải thích dữ liệu lưu ở đâu"
+        ]
+      }
+    ],
+    "nonFunctionalRequirements": [
+      {
+        "hang_muc": "Khả dụng cho người già",
+        "yeu_cau": "Chữ tối thiểu 16px, vùng chạm tối thiểu 44px, hỗ trợ text-to-speech và tìm bằng giọng nói tiếng Việt."
+      },
+      {
+        "hang_muc": "Offline",
+        "yeu_cau": "Toàn bộ nội dung tra cứu huyệt, phác đồ, đồ hình, nguyên lý xem được không cần mạng."
+      },
+      {
+        "hang_muc": "Đa nền tảng",
+        "yeu_cau": "iOS và Android, dùng chung hệ thống thành phần giao diện; cân nhắc Flutter/React Native."
+      },
+      {
+        "hang_muc": "Hiệu năng",
+        "yeu_cau": "Mở app dưới 2 giây; đồ hình tương tác mượt khi zoom/chạm."
+      },
+      {
+        "hang_muc": "Bảo mật dữ liệu",
+        "yeu_cau": "Bệnh án mặc định on-device, mã hóa khi đồng bộ; tuân thủ chính sách dữ liệu sức khỏe của App Store/Google Play."
+      },
+      {
+        "hang_muc": "An toàn nội dung",
+        "yeu_cau": "Disclaimer toàn app; cảnh báo đi khám với bệnh nguy hiểm; hỏi đáp cộng đồng có kiểm duyệt."
+      },
+      {
+        "hang_muc": "Đa ngôn ngữ",
+        "yeu_cau": "Tách phần văn bản để dễ dịch sang ngôn ngữ khác về sau."
+      }
+    ],
+    "mvpCompletionCriteria": [
+      "Người dùng nói/gõ một triệu chứng và nhận được phác đồ phù hợp.",
+      "Mở được phác đồ chi tiết, làm theo từng bước có đếm giờ.",
+      "Chạm đồ hình xem được huyệt và nhảy sang phác đồ liên quan.",
+      "Tra cứu hoạt động offline.",
+      "Có disclaimer + cảnh báo bệnh nguy hiểm hoạt động đúng.",
+      "Cài đặt cỡ chữ hoạt động toàn app."
+    ],
+    "privacyNotice": "Bệnh án là dữ liệu sức khỏe nhạy cảm. Mặc định lưu trên máy; chỉ đồng bộ cloud khi người dùng chủ động bật."
+  },
+  "trackingRecords": [],
+  "bookmarks": []
+}
