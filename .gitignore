@@ -1,7 +1,6 @@
 .DS_Store
 .local-server.pid
 node_modules/
-dist/
 build/
 .env
 .env.local

@@ -1,9 +1,7 @@
 {
   "public": true,
   "cleanUrls": true,
-  "installCommand": "cd mobile && if [ ! -d /tmp/flutter ]; then git clone https://github.com/flutter/flutter.git -b stable --depth 1 /tmp/flutter; fi && export PATH=\"$PATH:/tmp/flutter/bin\" && flutter config --enable-web && flutter pub get",
-  "buildCommand": "cd mobile && export PATH=\"$PATH:/tmp/flutter/bin\" && flutter build web --release",
-  "outputDirectory": "mobile/build/web",
+  "outputDirectory": "dist",
   "rewrites": [
     {
       "source": "/(.*)",
