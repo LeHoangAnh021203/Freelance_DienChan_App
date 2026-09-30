@@ -1,8 +1,13 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:camera/camera.dart' as camera;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'face_alignment_result.dart';
+import 'face_alignment_service.dart';
 
 void main() {
   runApp(const MultiDemoApp());
@@ -15,6 +20,24 @@ final ValueNotifier<int> notificationUnreadCount = ValueNotifier<int>(3);
 final ValueNotifier<Uint8List?> userFacePhotoBytes = ValueNotifier<Uint8List?>(
   null,
 );
+final ValueNotifier<FaceAlignmentResult?> userFaceAlignment =
+    ValueNotifier<FaceAlignmentResult?>(null);
+final ValueNotifier<_AppUserProfile?> _currentUserProfile =
+    ValueNotifier<_AppUserProfile?>(null);
+
+class _AppUserProfile {
+  const _AppUserProfile({
+    required this.fullName,
+    required this.phone,
+    required this.gmail,
+    required this.country,
+  });
+
+  final String fullName;
+  final String phone;
+  final String gmail;
+  final String country;
+}
 
 class MultiDemoApp extends StatelessWidget {
   const MultiDemoApp({super.key});
@@ -29,7 +52,399 @@ class MultiDemoApp extends StatelessWidget {
         colorScheme: finflowPreset.scheme,
         scaffoldBackgroundColor: finflowPreset.background,
       ),
-      home: const DemoShell(preset: finflowPreset),
+      home: const _AuthGate(),
+    );
+  }
+}
+
+class _AuthGate extends StatefulWidget {
+  const _AuthGate();
+
+  @override
+  State<_AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<_AuthGate> {
+  static const _nameKey = 'profile_full_name';
+  static const _phoneKey = 'profile_phone';
+  static const _gmailKey = 'profile_gmail';
+  static const _countryKey = 'profile_country';
+
+  bool _loading = true;
+  _AppUserProfile? _profile;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreProfile();
+  }
+
+  Future<void> _restoreProfile() async {
+    final preferences = await SharedPreferences.getInstance();
+    final name = preferences.getString(_nameKey)?.trim() ?? '';
+    final phone = preferences.getString(_phoneKey)?.trim() ?? '';
+    final gmail = preferences.getString(_gmailKey)?.trim() ?? '';
+    final country = preferences.getString(_countryKey)?.trim() ?? '';
+    final profile =
+        name.isNotEmpty &&
+            phone.isNotEmpty &&
+            gmail.isNotEmpty &&
+            country.isNotEmpty
+        ? _AppUserProfile(
+            fullName: name,
+            phone: phone,
+            gmail: gmail,
+            country: country,
+          )
+        : null;
+    _currentUserProfile.value = profile;
+    if (!mounted) return;
+    setState(() {
+      _profile = profile;
+      _loading = false;
+    });
+  }
+
+  Future<void> _saveProfile(_AppUserProfile profile) async {
+    final preferences = await SharedPreferences.getInstance();
+    await Future.wait([
+      preferences.setString(_nameKey, profile.fullName),
+      preferences.setString(_phoneKey, profile.phone),
+      preferences.setString(_gmailKey, profile.gmail),
+      preferences.setString(_countryKey, profile.country),
+    ]);
+    _currentUserProfile.value = profile;
+    if (!mounted) return;
+    setState(() => _profile = profile);
+  }
+
+  Future<void> _logout() async {
+    final preferences = await SharedPreferences.getInstance();
+    await Future.wait([
+      preferences.remove(_nameKey),
+      preferences.remove(_phoneKey),
+      preferences.remove(_gmailKey),
+      preferences.remove(_countryKey),
+    ]);
+    _currentUserProfile.value = null;
+    userFacePhotoBytes.value = null;
+    userFaceAlignment.value = null;
+    if (!mounted) return;
+    setState(() => _profile = null);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF0F766E)),
+        ),
+      );
+    }
+    if (_profile == null) {
+      return _ProfileLoginPage(onCompleted: _saveProfile);
+    }
+    return DemoShell(preset: finflowPreset, onLogout: _logout);
+  }
+}
+
+class _ProfileLoginPage extends StatefulWidget {
+  const _ProfileLoginPage({required this.onCompleted});
+
+  final Future<void> Function(_AppUserProfile profile) onCompleted;
+
+  @override
+  State<_ProfileLoginPage> createState() => _ProfileLoginPageState();
+}
+
+class _ProfileLoginPageState extends State<_ProfileLoginPage> {
+  static const _countries = [
+    'Việt Nam',
+    'Hoa Kỳ',
+    'Canada',
+    'Úc',
+    'Nhật Bản',
+    'Hàn Quốc',
+    'Singapore',
+    'Thái Lan',
+    'Pháp',
+    'Đức',
+    'Quốc gia khác',
+  ];
+
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _gmailController = TextEditingController();
+  String _country = _countries.first;
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _gmailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _submitting = true);
+    try {
+      await widget.onCompleted(
+        _AppUserProfile(
+          fullName: _nameController.text.trim(),
+          phone: _phoneController.text.trim(),
+          gmail: _gmailController.text.trim().toLowerCase(),
+          country: _country,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  String? _validateName(String? value) {
+    final name = value?.trim() ?? '';
+    if (name.isEmpty) return 'Vui lòng nhập họ tên';
+    if (name.length < 3) return 'Họ tên cần có ít nhất 3 ký tự';
+    return null;
+  }
+
+  String? _validatePhone(String? value) {
+    final phone = (value ?? '').replaceAll(RegExp(r'[\s().-]'), '');
+    if (phone.isEmpty) return 'Vui lòng nhập số điện thoại';
+    if (!RegExp(r'^\+?[0-9]{8,15}$').hasMatch(phone)) {
+      return 'Số điện thoại chưa đúng định dạng';
+    }
+    return null;
+  }
+
+  String? _validateGmail(String? value) {
+    final gmail = value?.trim().toLowerCase() ?? '';
+    if (gmail.isEmpty) return 'Vui lòng nhập Gmail';
+    if (!RegExp(r'^[a-z0-9._%+-]+@gmail\.com$').hasMatch(gmail)) {
+      return 'Vui lòng nhập địa chỉ @gmail.com hợp lệ';
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFF1E6),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFCF9),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFFF3C9A9)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x339A3412),
+                      blurRadius: 28,
+                      offset: Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: AutofillGroup(
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Align(
+                          alignment: Alignment.center,
+                          child: Container(
+                            width: 72,
+                            height: 72,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [Color(0xFFB91C1C), Color(0xFFF97316)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.face_retouching_natural,
+                              color: Colors.white,
+                              size: 38,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Chào mừng đến với Diện Chẩn',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF651B16),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Nhập thông tin để tạo hồ sơ và bắt đầu sử dụng ứng dụng.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0xFF8A4B35),
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 22),
+                        TextFormField(
+                          controller: _nameController,
+                          textInputAction: TextInputAction.next,
+                          textCapitalization: TextCapitalization.words,
+                          autofillHints: const [AutofillHints.name],
+                          validator: _validateName,
+                          decoration: _inputDecoration(
+                            label: 'Họ và tên',
+                            hint: 'Nguyễn Văn An',
+                            icon: Icons.person_outline_rounded,
+                            accent: const Color(0xFFB91C1C),
+                            fill: const Color(0xFFFFF1F2),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: _phoneController,
+                          keyboardType: TextInputType.phone,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.telephoneNumber],
+                          validator: _validatePhone,
+                          decoration: _inputDecoration(
+                            label: 'Số điện thoại',
+                            hint: '0901 234 567',
+                            icon: Icons.phone_outlined,
+                            accent: const Color(0xFFEA580C),
+                            fill: const Color(0xFFFFF7ED),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                          controller: _gmailController,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          autofillHints: const [AutofillHints.email],
+                          validator: _validateGmail,
+                          decoration: _inputDecoration(
+                            label: 'Gmail',
+                            hint: 'tenban@gmail.com',
+                            icon: Icons.mail_outline_rounded,
+                            accent: const Color(0xFFBE185D),
+                            fill: const Color(0xFFFDF2F8),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        DropdownButtonFormField<String>(
+                          initialValue: _country,
+                          decoration: _inputDecoration(
+                            label: 'Quốc gia',
+                            hint: 'Chọn quốc gia',
+                            icon: Icons.public_rounded,
+                            accent: const Color(0xFFB45309),
+                            fill: const Color(0xFFFFFBEB),
+                          ),
+                          items: _countries
+                              .map(
+                                (country) => DropdownMenuItem(
+                                  value: country,
+                                  child: Text(country),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) setState(() => _country = value);
+                          },
+                        ),
+                        const SizedBox(height: 20),
+                        FilledButton.icon(
+                          onPressed: _submitting ? null : _submit,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFF9F1239),
+                            foregroundColor: const Color(0xFFFFF7ED),
+                            disabledBackgroundColor: const Color(0xFFD6A08B),
+                            minimumSize: const Size.fromHeight(54),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                          icon: _submitting
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.login_rounded),
+                          label: Text(
+                            _submitting ? 'Đang lưu...' : 'Bắt đầu sử dụng',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Thông tin được lưu cục bộ trên thiết bị và dùng để cá nhân hóa hồ sơ.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0xFF9A6654),
+                            fontSize: 12,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration({
+    required String label,
+    required String hint,
+    required IconData icon,
+    required Color accent,
+    required Color fill,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      prefixIcon: Icon(icon, color: accent),
+      labelStyle: TextStyle(color: accent, fontWeight: FontWeight.w600),
+      filled: true,
+      fillColor: fill,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: accent.withValues(alpha: 0.28)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: accent.withValues(alpha: 0.36)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: accent, width: 1.8),
+      ),
     );
   }
 }
@@ -103,9 +518,10 @@ const demoPresets = [
 ];
 
 class DemoShell extends StatefulWidget {
-  const DemoShell({required this.preset, super.key});
+  const DemoShell({required this.preset, required this.onLogout, super.key});
 
   final DemoPreset preset;
+  final Future<void> Function() onLogout;
 
   @override
   State<DemoShell> createState() => _DemoShellState();
@@ -121,7 +537,10 @@ class _DemoShellState extends State<DemoShell> {
     final isFinflow = preset.id == 'finflow';
     final isNestfind = preset.id == 'clinical';
 
-    final pages = [HomeTab(preset: preset), ProfileTab(preset: preset)];
+    final pages = [
+      HomeTab(preset: preset),
+      ProfileTab(preset: preset, onLogout: widget.onLogout),
+    ];
     final safeTab = tab.clamp(0, pages.length - 1);
 
     return Theme(
@@ -254,16 +673,36 @@ class _FaceCaptureSheet extends StatelessWidget {
   Future<void> _pick(BuildContext sheetContext, ImageSource source) async {
     Navigator.pop(sheetContext);
     try {
-      final picker = ImagePicker();
-      final file = await picker.pickImage(
-        source: source,
-        preferredCameraDevice: CameraDevice.front,
-        maxWidth: 1600,
-        imageQuality: 88,
-      );
-      if (file == null) return;
-      final bytes = await file.readAsBytes();
-      userFacePhotoBytes.value = bytes;
+      _FaceCaptureResult? capture;
+      if (source == ImageSource.camera) {
+        capture = await Navigator.of(parentContext).push<_FaceCaptureResult>(
+          MaterialPageRoute(builder: (_) => const _FaceCameraPage()),
+        );
+      } else {
+        final picker = ImagePicker();
+        final file = await picker.pickImage(
+          source: source,
+          maxWidth: 1600,
+          imageQuality: 88,
+        );
+        if (file != null) {
+          final alignment = await analyzeFacePhoto(file);
+          if (!alignment.isValid) {
+            if (!parentContext.mounted) return;
+            ScaffoldMessenger.of(
+              parentContext,
+            ).showSnackBar(SnackBar(content: Text(alignment.message)));
+            return;
+          }
+          capture = _FaceCaptureResult(
+            bytes: await file.readAsBytes(),
+            alignment: alignment,
+          );
+        }
+      }
+      if (capture == null) return;
+      userFacePhotoBytes.value = capture.bytes;
+      userFaceAlignment.value = capture.alignment;
       if (!parentContext.mounted) return;
       await Navigator.of(parentContext).push(
         MaterialPageRoute(
@@ -330,6 +769,445 @@ class _FaceCaptureSheet extends StatelessWidget {
       ),
     );
   }
+}
+
+class _FaceCaptureResult {
+  const _FaceCaptureResult({required this.bytes, required this.alignment});
+
+  final Uint8List bytes;
+  final FaceAlignmentResult alignment;
+}
+
+class _FaceCameraPage extends StatefulWidget {
+  const _FaceCameraPage();
+
+  @override
+  State<_FaceCameraPage> createState() => _FaceCameraPageState();
+}
+
+class _FaceCameraPageState extends State<_FaceCameraPage>
+    with WidgetsBindingObserver {
+  camera.CameraController? _controller;
+  Future<void>? _initializing;
+  Uint8List? _capturedBytes;
+  FaceAlignmentResult? _alignment;
+  String? _error;
+  bool _takingPhoto = false;
+  bool _analyzing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _initializing = _initializeCamera();
+  }
+
+  Future<void> _initializeCamera() async {
+    try {
+      final cameras = await camera.availableCameras();
+      if (cameras.isEmpty) {
+        throw Exception('Không tìm thấy camera trên thiết bị');
+      }
+      final selected = cameras.firstWhere(
+        (item) => item.lensDirection == camera.CameraLensDirection.front,
+        orElse: () => cameras.first,
+      );
+      final controller = camera.CameraController(
+        selected,
+        camera.ResolutionPreset.high,
+        enableAudio: false,
+      );
+      await controller.initialize();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      setState(() {
+        _controller = controller;
+        _error = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(
+        () => _error = 'Không mở được camera. Hãy cấp quyền camera và thử lại.',
+      );
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+    if (state == AppLifecycleState.inactive) {
+      controller.dispose();
+      _controller = null;
+    } else if (state == AppLifecycleState.resumed && _capturedBytes == null) {
+      setState(() => _initializing = _initializeCamera());
+    }
+  }
+
+  Future<void> _takePhoto() async {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized || _takingPhoto) {
+      return;
+    }
+    setState(() => _takingPhoto = true);
+    try {
+      final file = await controller.takePicture();
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      setState(() {
+        _capturedBytes = bytes;
+        _alignment = null;
+        _analyzing = true;
+      });
+      final alignment = await analyzeFacePhoto(file);
+      if (!mounted) return;
+      setState(() {
+        _alignment = alignment;
+        _analyzing = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Không chụp được ảnh. Vui lòng thử lại.')),
+      );
+    } finally {
+      if (mounted) setState(() => _takingPhoto = false);
+    }
+  }
+
+  void _retake() => setState(() {
+    _capturedBytes = null;
+    _alignment = null;
+    _analyzing = false;
+  });
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: SafeArea(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (_capturedBytes != null)
+              Image.memory(_capturedBytes!, fit: BoxFit.cover)
+            else
+              FutureBuilder<void>(
+                future: _initializing,
+                builder: (context, snapshot) {
+                  final controller = _controller;
+                  if (_error != null) {
+                    return _CameraErrorState(
+                      message: _error!,
+                      onRetry: () =>
+                          setState(() => _initializing = _initializeCamera()),
+                    );
+                  }
+                  if (controller == null || !controller.value.isInitialized) {
+                    return const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    );
+                  }
+                  return Center(child: camera.CameraPreview(controller));
+                },
+              ),
+            IgnorePointer(
+              child: CustomPaint(
+                painter: _FaceGuidePainter(
+                  status: _capturedBytes == null ? null : _alignment?.isValid,
+                ),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              left: 8,
+              child: IconButton.filledTonal(
+                tooltip: 'Đóng',
+                onPressed: () => Navigator.pop(context),
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ),
+            Positioned(
+              left: 20,
+              right: 20,
+              top: 18,
+              child: IgnorePointer(
+                child: Text(
+                  _capturedBytes == null
+                      ? 'Đưa khuôn mặt vào giữa khung'
+                      : 'Kiểm tra mắt, mũi và cằm nằm đúng đường căn',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    shadows: [Shadow(color: Colors.black87, blurRadius: 8)],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 24,
+              child: _capturedBytes == null
+                  ? Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Nhìn thẳng · giữ máy ngang tầm mắt · đủ ánh sáng',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            shadows: [
+                              Shadow(color: Colors.black, blurRadius: 6),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        GestureDetector(
+                          onTap: _takingPhoto ? null : _takePhoto,
+                          child: Container(
+                            width: 76,
+                            height: 76,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                              border: Border.all(
+                                color: const Color(0xFF14B8A6),
+                                width: 6,
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Colors.black45,
+                                  blurRadius: 12,
+                                ),
+                              ],
+                            ),
+                            child: _takingPhoto
+                                ? const Padding(
+                                    padding: EdgeInsets.all(20),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 3,
+                                      color: Color(0xFF0F766E),
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.camera_alt_rounded,
+                                    color: Color(0xFF0F766E),
+                                    size: 32,
+                                  ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.68),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: _alignment?.isValid == true
+                                  ? const Color(0xFF5EEAD4)
+                                  : const Color(0xFFFCA5A5),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              if (_analyzing)
+                                const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              else
+                                Icon(
+                                  _alignment?.isValid == true
+                                      ? Icons.check_circle_rounded
+                                      : Icons.info_outline_rounded,
+                                  color: _alignment?.isValid == true
+                                      ? const Color(0xFF5EEAD4)
+                                      : const Color(0xFFFCA5A5),
+                                ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _analyzing
+                                      ? 'Đang kiểm tra 478 điểm khuôn mặt...'
+                                      : (_alignment?.message ??
+                                            'Không thể kiểm tra khuôn mặt.'),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _retake,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.white,
+                                  backgroundColor: Colors.black54,
+                                  side: const BorderSide(color: Colors.white70),
+                                  minimumSize: const Size.fromHeight(52),
+                                ),
+                                icon: const Icon(Icons.refresh_rounded),
+                                label: const Text('Chụp lại'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: _alignment?.isValid == true
+                                    ? () => Navigator.pop(
+                                        context,
+                                        _FaceCaptureResult(
+                                          bytes: _capturedBytes!,
+                                          alignment: _alignment!,
+                                        ),
+                                      )
+                                    : null,
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0F766E),
+                                  minimumSize: const Size.fromHeight(52),
+                                ),
+                                icon: const Icon(Icons.check_rounded),
+                                label: const Text('Dùng ảnh'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CameraErrorState extends StatelessWidget {
+  const _CameraErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.no_photography_outlined,
+              color: Colors.white,
+              size: 52,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white, height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Thử lại'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FaceGuidePainter extends CustomPainter {
+  const _FaceGuidePainter({this.status});
+
+  final bool? status;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height * 0.43);
+    final faceRect = Rect.fromCenter(
+      center: center,
+      width: size.width * 0.70,
+      height: size.height * 0.57,
+    );
+    final mask = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addRect(Offset.zero & size)
+      ..addOval(faceRect);
+    canvas.drawPath(
+      mask,
+      Paint()..color = Colors.black.withValues(alpha: 0.42),
+    );
+
+    final border = Paint()
+      ..color = status == null
+          ? const Color(0xFF5EEAD4)
+          : status!
+          ? const Color(0xFF22C55E)
+          : const Color(0xFFEF4444)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+    canvas.drawOval(faceRect, border);
+
+    final guide = Paint()
+      ..color = Colors.white.withValues(alpha: 0.72)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    final eyeY = faceRect.top + faceRect.height * 0.38;
+    final noseY = faceRect.top + faceRect.height * 0.57;
+    final mouthY = faceRect.top + faceRect.height * 0.72;
+    canvas.drawLine(
+      Offset(faceRect.left + faceRect.width * 0.18, eyeY),
+      Offset(faceRect.right - faceRect.width * 0.18, eyeY),
+      guide,
+    );
+    canvas.drawLine(
+      Offset(center.dx, faceRect.top + faceRect.height * 0.20),
+      Offset(center.dx, faceRect.bottom - faceRect.height * 0.10),
+      guide,
+    );
+    canvas.drawCircle(Offset(center.dx, noseY), 4, guide);
+    canvas.drawLine(
+      Offset(center.dx - faceRect.width * 0.12, mouthY),
+      Offset(center.dx + faceRect.width * 0.12, mouthY),
+      guide,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _FaceGuidePainter oldDelegate) =>
+      oldDelegate.status != status;
 }
 
 class _QrCommunitySheet extends StatelessWidget {
@@ -628,14 +1506,15 @@ class CommunityTab extends StatelessWidget {
 }
 
 class ProfileTab extends StatelessWidget {
-  const ProfileTab({required this.preset, super.key});
+  const ProfileTab({required this.preset, required this.onLogout, super.key});
 
   final DemoPreset preset;
+  final Future<void> Function() onLogout;
 
   @override
   Widget build(BuildContext context) {
     if (preset.id == 'finflow') {
-      return _FinflowProfileTab(preset: preset);
+      return _FinflowProfileTab(preset: preset, onLogout: onLogout);
     }
     if (preset.id == 'clinical') {
       return const _NestfindProfileTab();
@@ -1878,23 +2757,46 @@ class _FinflowHomeTab extends StatelessWidget {
       children: [
         Row(
           children: [
-            const CircleAvatar(
-              radius: 20,
-              backgroundColor: Color(0xFFB55238),
-              foregroundColor: Colors.white,
-              child: Text('L'),
+            ValueListenableBuilder<_AppUserProfile?>(
+              valueListenable: _currentUserProfile,
+              builder: (context, profile, _) {
+                final name = profile?.fullName.trim() ?? '';
+                final initial = name.isEmpty ? 'D' : name[0].toUpperCase();
+                return CircleAvatar(
+                  radius: 20,
+                  backgroundColor: const Color(0xFFB55238),
+                  foregroundColor: Colors.white,
+                  child: Text(
+                    initial,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                );
+              },
             ),
             const SizedBox(width: 10),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Xin chào', style: TextStyle(color: Color(0xFF8A6E5C))),
-                  Text(
-                    'Lê Hoàng Anh',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-                  ),
-                ],
+            Expanded(
+              child: ValueListenableBuilder<_AppUserProfile?>(
+                valueListenable: _currentUserProfile,
+                builder: (context, profile, _) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Xin chào',
+                        style: TextStyle(color: Color(0xFF8A6E5C)),
+                      ),
+                      Text(
+                        profile?.fullName ?? 'Người dùng Diện Chẩn',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
             GestureDetector(
@@ -2842,19 +3744,19 @@ const dienChanModules = [
     title: 'Huyệt',
     subtitle: 'Tra cứu huyệt',
     icon: Icons.face_retouching_natural,
-    colors: [Color(0xFFA65B38), Color(0xFFD4895A)],
+    colors: [Color(0xFF0F766E), Color(0xFF14B8A6)],
   ),
   _DienChanModule(
     title: 'Phác Đồ',
     subtitle: 'Phác đồ điều trị bệnh',
     icon: Icons.assignment_turned_in_outlined,
-    colors: [Color(0xFFB44A3C), Color(0xFFD77862)],
+    colors: [Color(0xFFBE123C), Color(0xFFF43F5E)],
   ),
   _DienChanModule(
     title: 'Đồ Hình',
     subtitle: 'Tra cứu đồ hình',
     icon: Icons.image_search_rounded,
-    colors: [Color(0xFF9C6B2E), Color(0xFFD4A054)],
+    colors: [Color(0xFF6D28D9), Color(0xFF8B5CF6)],
   ),
   _DienChanModule(
     title: 'Dụng Cụ',
@@ -2930,7 +3832,7 @@ class _LegacyEntryPanel extends StatelessWidget {
             title: 'Tra cứu',
             subtitle: 'Triệu chứng, bệnh và phác đồ',
             icon: Icons.manage_search_rounded,
-            colors: const [Color(0xFF8C3D28), Color(0xFFC45C3A)],
+            colors: const [Color(0xFF1D4ED8), Color(0xFF3B82F6)],
             onTap: () => _openLookup(context),
           ),
           const SizedBox(height: 8),
@@ -2938,7 +3840,7 @@ class _LegacyEntryPanel extends StatelessWidget {
             title: 'Kết nối',
             subtitle: 'Bạn bè và nhóm cộng đồng',
             icon: Icons.groups_2_outlined,
-            colors: const [Color(0xFFC17A2D), Color(0xFFE0A04A)],
+            colors: const [Color(0xFFB45309), Color(0xFFD97706)],
             onTap: () => _openCommunity(context),
           ),
           const SizedBox(height: 8),
@@ -3415,6 +4317,9 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody> {
                             points: _points,
                             highlightCode: selected?.code,
                             useSideView: _diagramIndex == 1,
+                            fitToFaceGuide: faceBytes != null,
+                            detectedFaceRect: userFaceAlignment.value?.faceRect,
+                            sourceImageSize: userFaceAlignment.value?.imageSize,
                           ),
                         ),
                         if (faceBytes != null)
@@ -3428,6 +4333,7 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody> {
                                 borderRadius: BorderRadius.circular(10),
                                 onTap: () {
                                   userFacePhotoBytes.value = null;
+                                  userFaceAlignment.value = null;
                                   setState(() {});
                                 },
                                 child: const Padding(
@@ -3796,6 +4702,9 @@ class _FaceOverlayPainter extends CustomPainter {
     required this.points,
     this.highlightCode,
     this.useSideView = false,
+    this.fitToFaceGuide = false,
+    this.detectedFaceRect,
+    this.sourceImageSize,
   });
 
   final bool showGrid;
@@ -3804,6 +4713,9 @@ class _FaceOverlayPainter extends CustomPainter {
   final List<_Acupoint> points;
   final String? highlightCode;
   final bool useSideView;
+  final bool fitToFaceGuide;
+  final Rect? detectedFaceRect;
+  final Size? sourceImageSize;
 
   Color _toneColor(_PointTone tone) {
     switch (tone) {
@@ -3818,6 +4730,15 @@ class _FaceOverlayPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    final area = detectedFaceRect != null && sourceImageSize != null
+        ? _mapFaceRectToCanvas(detectedFaceRect!, sourceImageSize!, size)
+        : fitToFaceGuide
+        ? Rect.fromCenter(
+            center: Offset(size.width / 2, size.height * 0.43),
+            width: size.width * 0.70,
+            height: size.height * 0.57,
+          )
+        : Offset.zero & size;
     final gridPaint = Paint()
       ..color = const Color(0xFF7DB7CB)
       ..strokeWidth = 0.75
@@ -3825,12 +4746,20 @@ class _FaceOverlayPainter extends CustomPainter {
 
     if (showGrid) {
       for (var i = 1; i < 14; i++) {
-        final x = size.width * i / 14;
-        canvas.drawLine(Offset(x, 10), Offset(x, size.height - 22), gridPaint);
+        final x = area.left + area.width * i / 14;
+        canvas.drawLine(
+          Offset(x, area.top + 10),
+          Offset(x, area.bottom - 22),
+          gridPaint,
+        );
       }
       for (var i = 1; i < 16; i++) {
-        final y = size.height * i / 16;
-        canvas.drawLine(Offset(14, y), Offset(size.width - 28, y), gridPaint);
+        final y = area.top + area.height * i / 16;
+        canvas.drawLine(
+          Offset(area.left + 14, y),
+          Offset(area.right - 28, y),
+          gridPaint,
+        );
       }
 
       final axisStyle = TextStyle(
@@ -3864,8 +4793,9 @@ class _FaceOverlayPainter extends CustomPainter {
           text: TextSpan(text: hLabels[i], style: axisStyle),
           textDirection: TextDirection.ltr,
         )..layout();
-        final x = size.width * (i + 0.5) / hLabels.length - tp.width / 2;
-        tp.paint(canvas, Offset(x, size.height - 14));
+        final x =
+            area.left + area.width * (i + 0.5) / hLabels.length - tp.width / 2;
+        tp.paint(canvas, Offset(x, area.bottom - 14));
       }
       const vLabels = [
         'O',
@@ -3888,8 +4818,10 @@ class _FaceOverlayPainter extends CustomPainter {
           textDirection: TextDirection.ltr,
         )..layout();
         final y =
-            size.height * (i + 0.7) / (vLabels.length + 1) - tp.height / 2;
-        tp.paint(canvas, Offset(size.width - 24, y));
+            area.top +
+            area.height * (i + 0.7) / (vLabels.length + 1) -
+            tp.height / 2;
+        tp.paint(canvas, Offset(area.right - 24, y));
       }
     }
 
@@ -3902,7 +4834,10 @@ class _FaceOverlayPainter extends CustomPainter {
 
     for (final point in points) {
       final pos = useSideView ? point.sidePos : point.pos;
-      final center = Offset(pos.dx * size.width, pos.dy * size.height);
+      final center = Offset(
+        area.left + pos.dx * area.width,
+        area.top + pos.dy * area.height,
+      );
       final isHighlight = highlightCode == point.code;
       final color = isHighlight
           ? const Color(0xFFE53E4E)
@@ -3938,7 +4873,36 @@ class _FaceOverlayPainter extends CustomPainter {
         oldDelegate.showLabels != showLabels ||
         oldDelegate.points != points ||
         oldDelegate.highlightCode != highlightCode ||
-        oldDelegate.useSideView != useSideView;
+        oldDelegate.useSideView != useSideView ||
+        oldDelegate.fitToFaceGuide != fitToFaceGuide ||
+        oldDelegate.detectedFaceRect != detectedFaceRect ||
+        oldDelegate.sourceImageSize != sourceImageSize;
+  }
+
+  Rect _mapFaceRectToCanvas(Rect normalized, Size sourceSize, Size canvasSize) {
+    final fitted = applyBoxFit(BoxFit.cover, sourceSize, canvasSize);
+    final sourceRect = Alignment.center.inscribe(
+      fitted.source,
+      Offset.zero & sourceSize,
+    );
+    final destinationRect = Alignment.center.inscribe(
+      fitted.destination,
+      Offset.zero & canvasSize,
+    );
+    double x(double value) =>
+        destinationRect.left +
+        ((value * sourceSize.width - sourceRect.left) / sourceRect.width) *
+            destinationRect.width;
+    double y(double value) =>
+        destinationRect.top +
+        ((value * sourceSize.height - sourceRect.top) / sourceRect.height) *
+            destinationRect.height;
+    return Rect.fromLTRB(
+      x(normalized.left),
+      y(normalized.top),
+      x(normalized.right),
+      y(normalized.bottom),
+    );
   }
 }
 
@@ -4538,24 +5502,6 @@ class _SafetyNoteCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _EmptyResultCard extends StatelessWidget {
-  const _EmptyResultCard({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(message, style: const TextStyle(color: Color(0xFF728076))),
     );
   }
 }
@@ -6415,9 +7361,36 @@ class _ConnectionListPage extends StatelessWidget {
 }
 
 class _FinflowProfileTab extends StatelessWidget {
-  const _FinflowProfileTab({required this.preset});
+  const _FinflowProfileTab({required this.preset, required this.onLogout});
 
   final DemoPreset preset;
+  final Future<void> Function() onLogout;
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Đăng xuất?'),
+        content: const Text(
+          'Bạn sẽ quay về màn hình đăng nhập. Thông tin hồ sơ cục bộ sẽ được xóa khỏi thiết bị này.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFB91C1C),
+            ),
+            child: const Text('Đăng xuất'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await onLogout();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -6436,16 +7409,42 @@ class _FinflowProfileTab extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        const Text(
-          'Lê Hoàng Anh',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontWeight: FontWeight.w900, fontSize: 26),
-        ),
-        const SizedBox(height: 3),
-        const Text(
-          'lehoanganh@email.com',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Color(0xFF7D847F), fontSize: 12),
+        ValueListenableBuilder<_AppUserProfile?>(
+          valueListenable: _currentUserProfile,
+          builder: (context, profile, _) {
+            return Column(
+              children: [
+                Text(
+                  profile?.fullName ?? 'Người dùng Diện Chẩn',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 26,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  profile == null ? '' : '${profile.gmail} · ${profile.phone}',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF7D847F),
+                    fontSize: 12,
+                  ),
+                ),
+                if (profile != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    profile.country,
+                    style: const TextStyle(
+                      color: Color(0xFF0F766E),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            );
+          },
         ),
         const SizedBox(height: 12),
         const _ProfileStatStrip(),
@@ -6470,11 +7469,12 @@ class _FinflowProfileTab extends StatelessWidget {
           title: 'Trợ giúp và hỗ trợ',
           subtitle: 'Câu hỏi thường gặp và liên hệ',
         ),
-        const _ProfileOptionCard(
+        _ProfileOptionCard(
           icon: Icons.logout_rounded,
           title: 'Đăng xuất',
           subtitle: 'Thoát tài khoản hiện tại',
           danger: true,
+          onTap: () => _confirmLogout(context),
         ),
       ],
     );
