@@ -100,31 +100,40 @@ class _AuthGateState extends State<_AuthGate> {
   }
 
   Future<void> _restoreProfile() async {
-    final preferences = await SharedPreferences.getInstance();
-    await _profileSettings.load(preferences);
-    await _profileSettings.restoreSchedule();
-    final name = preferences.getString(_nameKey)?.trim() ?? '';
-    final phone = preferences.getString(_phoneKey)?.trim() ?? '';
-    final gmail = preferences.getString(_gmailKey)?.trim() ?? '';
-    final country = preferences.getString(_countryKey)?.trim() ?? '';
-    final profile =
-        name.isNotEmpty &&
-            phone.isNotEmpty &&
-            gmail.isNotEmpty &&
-            country.isNotEmpty
-        ? _AppUserProfile(
-            fullName: name,
-            phone: phone,
-            gmail: gmail,
-            country: country,
-          )
-        : null;
-    await _restoreAvatar(preferences, profile != null);
-    _currentUserProfile.value = profile;
-    if (!mounted) return;
-    setState(() {
-      _loading = false;
-    });
+    try {
+      final preferences = await SharedPreferences.getInstance().timeout(
+        const Duration(seconds: 5),
+      );
+      await _profileSettings.load(preferences);
+      await _profileSettings.restoreSchedule().timeout(
+        const Duration(seconds: 5),
+      );
+      final name = preferences.getString(_nameKey)?.trim() ?? '';
+      final phone = preferences.getString(_phoneKey)?.trim() ?? '';
+      final gmail = preferences.getString(_gmailKey)?.trim() ?? '';
+      final country = preferences.getString(_countryKey)?.trim() ?? '';
+      final profile =
+          name.isNotEmpty &&
+              phone.isNotEmpty &&
+              gmail.isNotEmpty &&
+              country.isNotEmpty
+          ? _AppUserProfile(
+              fullName: name,
+              phone: phone,
+              gmail: gmail,
+              country: country,
+            )
+          : null;
+      await _restoreAvatar(preferences, profile != null);
+      _currentUserProfile.value = profile;
+    } catch (error, stack) {
+      debugPrint('Profile restoration failed: $error\n$stack');
+      _currentUserProfile.value = null;
+      _profileAvatar.value = null;
+      _profileSettings.reminders = false;
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   static Future<void> _saveProfile(_AppUserProfile profile) async {

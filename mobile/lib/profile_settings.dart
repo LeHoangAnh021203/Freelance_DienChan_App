@@ -486,7 +486,9 @@ Future<void> _restoreAvatar(
   if (!signedIn || stored == null) return;
   try {
     final bytes = base64Decode(stored);
-    final codec = await instantiateImageCodec(bytes);
+    final codec = await instantiateImageCodec(
+      bytes,
+    ).timeout(const Duration(seconds: 5));
     codec.dispose();
     _profileAvatar.value = bytes;
   } catch (_) {

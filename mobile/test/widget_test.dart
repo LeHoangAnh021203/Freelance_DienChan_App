@@ -5,6 +5,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+  testWidgets('Dữ liệu cục bộ sai kiểu không làm kẹt màn hình tải', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'profile_full_name': 123,
+      'settings_reminders': 'invalid',
+    });
+    await tester.pumpWidget(const MultiDemoApp());
+    await tester.pumpAndSettle();
+    expect(find.text('Trang chủ'), findsWidgets);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets('App mở thẳng Mẫu A vào trang chủ', (tester) async {
     await tester.pumpWidget(const MultiDemoApp());
     await tester.pumpAndSettle();
@@ -163,7 +176,8 @@ void main() {
   });
 
   testWidgets('Khôi phục và xóa ảnh đại diện đã lưu', (tester) async {
-    const avatar = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6XcAAAAASUVORK5CYII=';
+    const avatar =
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6XcAAAAASUVORK5CYII=';
     await openProfile(tester, avatar: avatar);
     expect(find.bySemanticsLabel('Ảnh đại diện'), findsOneWidget);
     await tester.tap(find.bySemanticsLabel('Ảnh đại diện'));
@@ -174,7 +188,10 @@ void main() {
     await tester.tap(find.text('Xóa ảnh'));
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.add_a_photo_outlined), findsOneWidget);
-    expect((await SharedPreferences.getInstance()).getString('profile_avatar'), isNull);
+    expect(
+      (await SharedPreferences.getInstance()).getString('profile_avatar'),
+      isNull,
+    );
     await tester.pumpWidget(const SizedBox());
   });
 }
