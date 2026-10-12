@@ -1,0 +1,29 @@
+{
+  "id": "bui-quoc-chau-do-hinh-phan-chieu-dong-ung",
+  "title": "Chữa bệnh bằng đồ hình phản chiếu & đồng ứng theo phương pháp Diện Chẩn – điều khiển liệu pháp",
+  "author": "Bùi Quốc Châu",
+  "user_cover_publisher": "Hồng Đức",
+  "user_cover_edition_confirmed": false,
+  "catalog_edition": {
+    "publisher": "Hồng Đức",
+    "year": 2025,
+    "pages": 143,
+    "isbn": "9786326006810"
+  },
+  "sources": [
+    {
+      "type": "library_catalog",
+      "url": "https://phucvu.thuvientphcm.gov.vn/Item/ItemDetail/840374",
+      "verification": "Thông tin từ kết quả tìm kiếm được lập chỉ mục; mở trực tiếp thất bại trong phiên kiểm tra."
+    },
+    {
+      "type": "bookseller_listing",
+      "url": "https://dangnhienbooks.vn/products/sach-chua-benh-bang-do-hinh-phan-chieu-va-dong-ung",
+      "verification": "Tìm thấy trang giới thiệu sách, chưa đọc toàn văn."
+    }
+  ],
+  "checked_on": "2026-10-11",
+  "full_text_status": "not_verified",
+  "local_full_text": null,
+  "coordinate_validation_status": "not_validated_from_this_book"
+}
