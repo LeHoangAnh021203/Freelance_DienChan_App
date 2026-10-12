@@ -141,3 +141,7 @@ Không phải tất cả mã đều có điểm hiển thị. Tọa độ chưa 
 
 Mô hình MediaPipe OBJ đóng gói sẵn, vẽ bằng Flutter Canvas, không cần CDN.
 Nguồn, giấy phép và checksum tại `mobile/assets/models/README.md`.
+
+## Cập nhật Vercel
+
+Vercel phục vụ bản build có sẵn trong `dist`, không tự build Flutter. Chạy `flutter build web --release` trong `mobile`, đồng bộ `mobile/build/web/` sang `dist/` và `mobile/dist/`, rồi commit và push bản build. Kiểm tra `/release.json` trên website để xác nhận phiên bản triển khai.
