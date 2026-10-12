@@ -60,6 +60,44 @@ class _Face3DPageState extends State<Face3DPage> {
   final bool _wire = false;
   ui.Image? _drawing;
   int _loadGeneration = 0;
+  List<double>? _focus;
+  FaceMesh? _loadedMesh;
+
+  @override
+  void didUpdateWidget(covariant Face3DPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.highlightCode != widget.highlightCode) _focusSelection();
+  }
+
+  void _focusSelection() {
+    final mesh = _loadedMesh;
+    _focus = null;
+    if (mesh == null || widget.highlightCode == null) return;
+    final anchors = anchorFacePoints(
+      mesh,
+      widget.markers.where((p) => p.code == widget.highlightCode).toList(),
+    );
+    for (final anchor in anchors) {
+      final uv = List.generate(
+        3,
+        (i) =>
+            faceDrawingUV(mesh.vertices[anchor.triangle[i]]) *
+            anchor.weights[i],
+      ).reduce((a, b) => a + b);
+      if (!isInsideFaceIllustration(uv)) continue;
+      _focus = List.generate(
+        3,
+        (axis) => List.generate(
+          3,
+          (i) => mesh.vertices[anchor.triangle[i]][axis] * anchor.weights[i],
+        ).reduce((a, b) => a + b),
+      );
+      _yaw = (-math.atan2(_focus![0], _focus![2])).clamp(-1.1, 1.1);
+      _pitch = 0;
+      _zoom = 2.2;
+      break;
+    }
+  }
 
   @override
   void dispose() {
@@ -97,6 +135,8 @@ class _Face3DPageState extends State<Face3DPage> {
       } finally {
         codec.dispose();
       }
+      _loadedMesh = mesh;
+      _focusSelection();
       return mesh;
     }();
   }
@@ -105,6 +145,7 @@ class _Face3DPageState extends State<Face3DPage> {
     _yaw = 0;
     _pitch = 0;
     _zoom = 1;
+    _focus = null;
   });
 
   @override
@@ -183,6 +224,7 @@ class _Face3DPageState extends State<Face3DPage> {
                               widget.markers,
                               widget.highlightCode,
                               widget.showLabels,
+                              _focus,
                             ),
                             child: const SizedBox.expand(),
                           ),
@@ -216,7 +258,9 @@ class _FaceMeshPainter extends CustomPainter {
     this.markers,
     this.highlightCode,
     this.showLabels,
+    this.focus,
   );
+  final List<double>? focus;
   final List<FacePoint> markers;
   final String? highlightCode;
   final bool showLabels;
@@ -246,9 +290,19 @@ class _FaceMeshPainter extends CustomPainter {
         (a, b) => (points[a[0]][2] + points[a[1]][2] + points[a[2]][2])
             .compareTo(points[b[0]][2] + points[b[1]][2] + points[b[2]][2]),
       );
+    var focusOffset = Offset.zero;
+    if (focus case final target?) {
+      final x = target[0], y = target[1] + 0.5, z = target[2] - 3;
+      final rx = x * math.cos(yaw) + z * math.sin(yaw);
+      final rz = -x * math.sin(yaw) + z * math.cos(yaw);
+      final ry = y * math.cos(pitch) - rz * math.sin(pitch);
+      final depth = y * math.sin(pitch) + rz * math.cos(pitch);
+      focusOffset = Offset(rx, -ry) * (scale * 40 / (40 - depth));
+    }
     Offset project(List<double> v) {
       final perspective = 40 / (40 - v[2]);
-      return center +
+      return center -
+          focusOffset +
           Offset(v[0] * scale * perspective, -v[1] * scale * perspective);
     }
 
@@ -361,6 +415,7 @@ class _FaceMeshPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _FaceMeshPainter old) =>
+      old.focus != focus ||
       old.markers != markers ||
       old.highlightCode != highlightCode ||
       old.showLabels != showLabels ||

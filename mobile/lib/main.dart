@@ -4593,26 +4593,6 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody> {
               ),
             ),
           ),
-        if (selected != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8F5FA),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _accent.withValues(alpha: 0.3)),
-              ),
-              child: Text(
-                'Huyệt ${selected.code} · ${_acupointSourceNote(selected.code) ?? selected.subtitle}\nVị trí trên hình: chưa xác minh.',
-                style: const TextStyle(
-                  color: _accent,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
@@ -8378,12 +8358,4 @@ class _SectionTitle extends StatelessWidget {
       style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 19),
     );
   }
-}
-
-String? _acupointSourceNote(String code) {
-  final reference = bqcGridReferences[code];
-  if (reference == null) {
-    return 'Chưa đối chiếu được mã này trong ảnh bảng người dùng cung cấp; không đặt điểm phỏng đoán.';
-  }
-  return '${reference.description}. ${bqcFrontPositions(code).isEmpty ? 'Chưa có tọa độ chính diện; trắc diện được chiếu ước lượng lên 3D khi nằm trong lưới mặt. Đối chiếu ảnh gốc để kiểm tra.' : 'Đã đọc chấm trên sơ đồ tr.154 và căn lưới theo ảnh; chưa kiểm duyệt chuyên môn.'}';
 }
