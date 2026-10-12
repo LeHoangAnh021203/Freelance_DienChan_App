@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter, instantiateImageCodec, ImageByteFormat;
 
 import 'package:camera/camera.dart' as camera;
@@ -12,7 +13,6 @@ import 'face_alignment_result.dart';
 import 'face_3d_view.dart';
 import 'acupoint_calibration.dart';
 import 'bqc_grid_reference.dart';
-import 'bqc_source_view.dart';
 import 'bqc_digitized.dart';
 import 'face_alignment_service.dart';
 
@@ -4055,10 +4055,12 @@ class _LegacyModulePage extends StatelessWidget {
   const _LegacyModulePage({
     required this.module,
     this.startWithAllPoints = false,
+    this.initialCode,
   });
 
   final _DienChanModule module;
   final bool startWithAllPoints;
+  final String? initialCode;
 
   @override
   Widget build(BuildContext context) {
@@ -4066,7 +4068,10 @@ class _LegacyModulePage extends StatelessWidget {
     Widget body;
     switch (module.title) {
       case 'Huyệt':
-        body = _AcupointLookupPageBody(startWithAllPoints: startWithAllPoints);
+        body = _AcupointLookupPageBody(
+          startWithAllPoints: startWithAllPoints,
+          initialCode: initialCode,
+        );
         break;
       case 'Phác Đồ':
         body = const _ProtocolListPageBody();
@@ -4085,7 +4090,11 @@ class _LegacyModulePage extends StatelessWidget {
       backgroundColor: const Color(0xFFF6EFE6),
       appBar: AppBar(
         foregroundColor: Colors.white,
-        title: Text(isHuyet ? 'Tra Huyệt' : module.title),
+        title: Text(
+          isHuyet
+              ? (initialCode == null ? 'Tra Huyệt' : 'Huyệt $initialCode')
+              : module.title,
+        ),
         backgroundColor: module.colors.first,
         actions: isHuyet
             ? null
@@ -4103,16 +4112,21 @@ class _LegacyModulePage extends StatelessWidget {
 }
 
 class _AcupointLookupPageBody extends StatefulWidget {
-  const _AcupointLookupPageBody({this.startWithAllPoints = false});
+  const _AcupointLookupPageBody({
+    this.startWithAllPoints = false,
+    this.initialCode,
+  });
 
   final bool startWithAllPoints;
+  final String? initialCode;
 
   @override
   State<_AcupointLookupPageBody> createState() =>
       _AcupointLookupPageBodyState();
 }
 
-class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody> {
+class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
+    with SingleTickerProviderStateMixin {
   static const _accent = Color(0xFFA65B38);
   static const _diagrams = ['H. 1', 'H. 2', 'H. 3'];
 
@@ -4124,9 +4138,11 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody> {
   String _query = '';
   String? _selectedCode;
   final _faceTransform = TransformationController();
+  late final AnimationController _highlightPulse;
 
   @override
   void dispose() {
+    _highlightPulse.dispose();
     _faceTransform.dispose();
     super.dispose();
   }
@@ -4134,11 +4150,74 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody> {
   @override
   void initState() {
     super.initState();
-    if (widget.startWithAllPoints || userFacePhotoBytes.value != null) {
+    _highlightPulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+    if (widget.initialCode != null) {
+      _selectedCode = widget.initialCode;
+      _query = widget.initialCode!;
+      _showPoints = true;
+      _highlightPulse.repeat();
+    } else if (widget.startWithAllPoints || userFacePhotoBytes.value != null) {
       _showPoints = true;
       _showAllLabeled = true;
       _showGrid = true;
     }
+  }
+
+  void _selectCode(String? code, {bool showAll = false}) {
+    setState(() {
+      _selectedCode = code;
+      _query = code ?? '';
+      _showPoints = true;
+      _showAllLabeled = showAll;
+      if (showAll) _selectedCode = null;
+    });
+    _syncHighlightPulse();
+  }
+
+  void _syncHighlightPulse() {
+    if (_selectedCode != null && !_showAllLabeled) {
+      if (!_highlightPulse.isAnimating) _highlightPulse.repeat();
+    } else {
+      _highlightPulse
+        ..stop()
+        ..value = 0;
+    }
+  }
+
+  List<FacePoint> _markersFor(_Acupoint? selected) {
+    final visible = _showAllLabeled
+        ? _points
+        : selected != null
+        ? [selected]
+        : (_showPoints ? _points : const <_Acupoint>[]);
+    return [
+      for (final p in visible)
+        if (p.frontPositions.isNotEmpty)
+          for (final position in p.frontPositions)
+            FacePoint(
+              p.code,
+              position,
+              p.tone == _PointTone.red
+                  ? const Color(0xFFE53935)
+                  : const Color(0xFF5DA9C4),
+            )
+        else if (bqcSideSourceDots[p.code] case final position?)
+          for (final projection in [
+            FacePointProjection.rightProfile,
+            FacePointProjection.leftProfile,
+          ])
+            FacePoint(
+              p.code,
+              position,
+              p.tone == _PointTone.red
+                  ? const Color(0xFFE53935)
+                  : const Color(0xFF5DA9C4),
+              projection: projection,
+            ),
+    ];
   }
 
   List<_Acupoint> get _points => _dienChanAcupointCatalog;
@@ -4156,6 +4235,7 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody> {
       _showAllLabeled = true;
       _showGrid = true;
     });
+    _syncHighlightPulse();
   }
 
   void _openFindKeypad() {
@@ -4291,13 +4371,9 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody> {
                             Expanded(
                               child: FilledButton(
                                 onPressed: () {
-                                  setState(() {
-                                    _query = buffer;
-                                    _selectedCode = buffer.isEmpty
-                                        ? null
-                                        : buffer;
-                                    _showPoints = true;
-                                  });
+                                  _selectCode(
+                                    buffer.isEmpty ? null : buffer,
+                                  );
                                   Navigator.pop(sheetContext);
                                 },
                                 style: FilledButton.styleFrom(
@@ -4389,16 +4465,18 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody> {
   Widget build(BuildContext context) {
     _Acupoint? selected;
     if (_selectedCode != null) {
-      for (final p in _points) {
-        if (p.code == _selectedCode) {
-          selected = p;
-          break;
-        }
-      }
+      selected =
+          _acupointByCode(_selectedCode!) ??
+          _acupointsForCodes([_selectedCode!]).first;
     } else {
       final matched = _matched;
       if (matched.length == 1) selected = matched.first;
     }
+    final visiblePoints = _showAllLabeled
+        ? _points
+        : selected != null
+        ? [selected]
+        : _points;
 
     return Column(
       children: [
@@ -4417,41 +4495,9 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody> {
                 child: _show3D
                     ? Face3DPage(
                         embedded: true,
-                        markers: _showPoints
-                            ? _points
-                                  .expand(
-                                    (p) => p.frontPositions.isNotEmpty
-                                        ? p.frontPositions.map(
-                                            (position) => FacePoint(
-                                              p.code,
-                                              position,
-                                              p.tone == _PointTone.red
-                                                  ? const Color(0xFFE53935)
-                                                  : const Color(0xFF5DA9C4),
-                                            ),
-                                          )
-                                        : [
-                                            if (bqcSideSourceDots[p.code]
-                                                case final position?)
-                                              for (final projection in [
-                                                FacePointProjection
-                                                    .rightProfile,
-                                                FacePointProjection.leftProfile,
-                                              ])
-                                                FacePoint(
-                                                  p.code,
-                                                  position,
-                                                  p.tone == _PointTone.red
-                                                      ? const Color(0xFFE53935)
-                                                      : const Color(0xFF5DA9C4),
-                                                  projection: projection,
-                                                ),
-                                          ],
-                                  )
-                                  .toList()
-                            : const [],
+                        markers: _markersFor(selected),
                         highlightCode: selected?.code,
-                        showLabels: _showAllLabeled,
+                        showLabels: _showAllLabeled || selected != null,
                         onShow2D: () => setState(() => _show3D = false),
                       )
                     : ValueListenableBuilder<Uint8List?>(
@@ -4482,20 +4528,31 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody> {
                                         fit: BoxFit.contain,
                                         alignment: Alignment.center,
                                       ),
-                                    CustomPaint(
-                                      painter: _FaceOverlayPainter(
-                                        showGrid: _showGrid,
-                                        showPoints: _showPoints,
-                                        showLabels: _showAllLabeled,
-                                        points: _points,
-                                        highlightCode: selected?.code,
-                                        useSideView: _diagramIndex == 1,
-                                        fitToFaceGuide: faceBytes != null,
-                                        detectedFaceRect:
-                                            userFaceAlignment.value?.faceRect,
-                                        sourceImageSize:
-                                            userFaceAlignment.value?.imageSize,
-                                      ),
+                                    AnimatedBuilder(
+                                      animation: _highlightPulse,
+                                      builder: (context, _) {
+                                        return CustomPaint(
+                                          painter: _FaceOverlayPainter(
+                                            showGrid: _showGrid,
+                                            showPoints:
+                                                _showPoints || selected != null,
+                                            showLabels:
+                                                _showAllLabeled ||
+                                                selected != null,
+                                            points: visiblePoints,
+                                            highlightCode: selected?.code,
+                                            pulse: _highlightPulse.value,
+                                            useSideView: _diagramIndex == 1,
+                                            fitToFaceGuide: faceBytes != null,
+                                            detectedFaceRect: userFaceAlignment
+                                                .value
+                                                ?.faceRect,
+                                            sourceImageSize: userFaceAlignment
+                                                .value
+                                                ?.imageSize,
+                                          ),
+                                        );
+                                      },
                                     ),
                                   ],
                                 ),
@@ -4553,6 +4610,11 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody> {
             ),
           ),
         ),
+        if (selected != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 0),
+            child: _AcupointFocusBanner(point: selected),
+          ),
         if (!_show3D && userFacePhotoBytes.value != null)
           const Padding(
             padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
@@ -4580,16 +4642,6 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody> {
                   fontWeight: FontWeight.w700,
                   fontSize: 12.5,
                 ),
-              ),
-            ),
-          ),
-        if (selected != null)
-          TextButton.icon(
-            icon: const Icon(Icons.menu_book),
-            label: const Text('Đối chiếu chấm trên tài liệu'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => BqcSourceView(code: selected!.code),
               ),
             ),
           ),
@@ -4652,6 +4704,7 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody> {
                       label: 'Tìm Huyệt',
                       onTap: () {
                         setState(() => _showAllLabeled = false);
+                        _syncHighlightPulse();
                         _openFindKeypad();
                       },
                     ),
@@ -4752,6 +4805,73 @@ List<_Acupoint> _acupointsForCodes(Iterable<String> codes) {
   return result;
 }
 
+class _AcupointFocusBanner extends StatelessWidget {
+  const _AcupointFocusBanner({required this.point});
+
+  final _Acupoint point;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xF2FFF6E0),
+      elevation: 3,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        child: Row(
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE53935),
+                shape: BoxShape.circle,
+              ),
+              child: Text(
+                point.code,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Huyệt ${point.code}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 14,
+                      color: Color(0xFF7A1D1D),
+                    ),
+                  ),
+                  Text(
+                    point.subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 1.25,
+                      color: Color(0xFF6E5340),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.my_location_rounded, color: Color(0xFFE53935)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _HuyetSquareButton extends StatelessWidget {
   const _HuyetSquareButton({this.icon, this.label, required this.onTap});
 
@@ -4835,6 +4955,7 @@ class _FaceOverlayPainter extends CustomPainter {
     required this.showLabels,
     required this.points,
     this.highlightCode,
+    this.pulse = 0,
     this.useSideView = false,
     this.fitToFaceGuide = false,
     this.detectedFaceRect,
@@ -4846,6 +4967,7 @@ class _FaceOverlayPainter extends CustomPainter {
   final bool showLabels;
   final List<_Acupoint> points;
   final String? highlightCode;
+  final double pulse;
   final bool useSideView;
   final bool fitToFaceGuide;
   final Rect? detectedFaceRect;
@@ -4979,27 +5101,72 @@ class _FaceOverlayPainter extends CustomPainter {
         final isHighlight = highlightCode == point.code;
         final color = isHighlight
             ? const Color(0xFFE53E4E)
-            : _toneColor(point.tone);
-        final radius = isHighlight ? 4.8 : (showLabels ? 3.2 : 3.8);
+            : _toneColor(point.tone).withValues(
+                alpha: highlightCode == null ? 1 : 0.22,
+              );
+        if (isHighlight) {
+          final wave = (math.sin(pulse * math.pi * 2) + 1) / 2;
+          canvas.drawCircle(
+            center,
+            16 + wave * 10,
+            Paint()
+              ..color = const Color(
+                0xFFFF6D00,
+              ).withValues(alpha: 0.16 * (1 - wave)),
+          );
+          canvas.drawCircle(
+            center,
+            10 + wave * 6,
+            Paint()
+              ..color = const Color(
+                0xFFFF8F00,
+              ).withValues(alpha: 0.7 * (1 - wave))
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.4,
+          );
+        }
+        final radius = isHighlight ? 6.4 : (showLabels ? 3.2 : 3.8);
         canvas.drawCircle(center, radius, Paint()..color = color);
         canvas.drawCircle(center, radius, ringPaint);
 
         if (showLabels || isHighlight) {
           final label = TextPainter(
             text: TextSpan(
-              text: point.code,
+              text: isHighlight ? 'Huyệt ${point.code}' : point.code,
               style: TextStyle(
-                color: const Color(0xFF1A2A32),
-                fontSize: showLabels ? 8.5 : 10,
+                color: isHighlight
+                    ? const Color(0xFF7A1D1D)
+                    : const Color(0xFF1A2A32),
+                fontSize: isHighlight ? 12 : (showLabels ? 8.5 : 10),
                 fontWeight: FontWeight.w800,
               ),
             ),
             textDirection: TextDirection.ltr,
           )..layout();
-          label.paint(
-            canvas,
-            Offset(center.dx + 4.5, center.dy - label.height - 1),
+          final origin = Offset(
+            center.dx + (isHighlight ? 14 : 6),
+            center.dy - label.height / 2,
           );
+          if (isHighlight) {
+            final bounds = RRect.fromRectAndRadius(
+              Rect.fromLTWH(
+                origin.dx - 6,
+                origin.dy - 3,
+                label.width + 12,
+                label.height + 6,
+              ),
+              const Radius.circular(8),
+            );
+            canvas.drawRRect(bounds, Paint()..color = const Color(0xFFFFF6E0));
+            canvas.drawRRect(
+              bounds,
+              Paint()
+                ..color = const Color(0xFFE8C56B)
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = 1,
+            );
+          }
+          label.paint(canvas, origin);
         }
       }
     }
@@ -5012,6 +5179,7 @@ class _FaceOverlayPainter extends CustomPainter {
         oldDelegate.showLabels != showLabels ||
         oldDelegate.points != points ||
         oldDelegate.highlightCode != highlightCode ||
+        oldDelegate.pulse != pulse ||
         oldDelegate.useSideView != useSideView ||
         oldDelegate.fitToFaceGuide != fitToFaceGuide ||
         oldDelegate.detectedFaceRect != detectedFaceRect ||
@@ -5134,8 +5302,10 @@ class _ProtocolDetailPage extends StatelessWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) =>
-                      _LegacyModulePage(module: dienChanModules.first),
+                  builder: (_) => _LegacyModulePage(
+                    module: dienChanModules.first,
+                    initialCode: entry.value.replaceFirst('Huyệt ', ''),
+                  ),
                 ),
               ),
             ),
@@ -6903,7 +7073,7 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
                             MaterialPageRoute(
                               builder: (_) => _LegacyModulePage(
                                 module: dienChanModules.first,
-                                startWithAllPoints: true,
+                                initialCode: detail.code,
                               ),
                             ),
                           );

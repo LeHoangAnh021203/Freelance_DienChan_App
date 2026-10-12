@@ -54,8 +54,10 @@ class Face3DPage extends StatefulWidget {
   State<Face3DPage> createState() => _Face3DPageState();
 }
 
-class _Face3DPageState extends State<Face3DPage> {
+class _Face3DPageState extends State<Face3DPage>
+    with SingleTickerProviderStateMixin {
   late Future<FaceMesh> _mesh;
+  late final AnimationController _pulse;
   double _yaw = 0, _pitch = 0, _zoom = 1, _startZoom = 1;
   final bool _wire = false;
   ui.Image? _drawing;
@@ -66,12 +68,25 @@ class _Face3DPageState extends State<Face3DPage> {
   @override
   void didUpdateWidget(covariant Face3DPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.highlightCode != widget.highlightCode) _focusSelection();
+    if (oldWidget.highlightCode != widget.highlightCode) {
+      setState(_focusSelection);
+    }
+  }
+
+  void _syncPulse() {
+    if (widget.highlightCode == null) {
+      _pulse
+        ..stop()
+        ..value = 0;
+      return;
+    }
+    if (!_pulse.isAnimating) _pulse.repeat();
   }
 
   void _focusSelection() {
     final mesh = _loadedMesh;
     _focus = null;
+    _syncPulse();
     if (mesh == null || widget.highlightCode == null) return;
     final anchors = anchorFacePoints(
       mesh,
@@ -94,13 +109,14 @@ class _Face3DPageState extends State<Face3DPage> {
       );
       _yaw = (-math.atan2(_focus![0], _focus![2])).clamp(-1.1, 1.1);
       _pitch = 0;
-      _zoom = 2.2;
+      _zoom = 2.35;
       break;
     }
   }
 
   @override
   void dispose() {
+    _pulse.dispose();
     _loadGeneration++;
     _drawing?.dispose();
     super.dispose();
@@ -109,6 +125,11 @@ class _Face3DPageState extends State<Face3DPage> {
   @override
   void initState() {
     super.initState();
+    _pulse = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1100),
+    );
+    _syncPulse();
     _load();
   }
 
@@ -136,7 +157,9 @@ class _Face3DPageState extends State<Face3DPage> {
         codec.dispose();
       }
       _loadedMesh = mesh;
-      _focusSelection();
+      if (mounted && generation == _loadGeneration) {
+        _focusSelection();
+      }
       return mesh;
     }();
   }
@@ -225,6 +248,7 @@ class _Face3DPageState extends State<Face3DPage> {
                               widget.highlightCode,
                               widget.showLabels,
                               _focus,
+                              _pulse,
                             ),
                             child: const SizedBox.expand(),
                           ),
@@ -259,7 +283,9 @@ class _FaceMeshPainter extends CustomPainter {
     this.highlightCode,
     this.showLabels,
     this.focus,
-  );
+    this.pulse,
+  ) : super(repaint: pulse);
+  final Animation<double> pulse;
   final List<double>? focus;
   final List<FacePoint> markers;
   final String? highlightCode;
@@ -368,33 +394,88 @@ class _FaceMeshPainter extends CustomPainter {
         );
         final spot = project(position);
         final active = anchor.point.code == highlightCode;
+        if (active) {
+          final wave = (math.sin(pulse.value * math.pi * 2) + 1) / 2;
+          canvas.drawCircle(
+            spot,
+            18 + wave * 10,
+            Paint()
+              ..color = const Color(0xFFFF6D00).withValues(alpha: 0.16 * (1 - wave)),
+          );
+          canvas.drawCircle(
+            spot,
+            12 + wave * 8,
+            Paint()
+              ..color = const Color(0xFFFF8F00).withValues(alpha: 0.55 * (1 - wave))
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2.6,
+          );
+          canvas.drawCircle(
+            spot,
+            8 + wave * 3,
+            Paint()
+              ..color = const Color(0xFFFFC107).withValues(alpha: 0.28 + wave * 0.18),
+          );
+        }
         canvas.drawCircle(
           spot,
-          active ? 6 : 3.5,
+          active ? 7 : 3.5,
           Paint()..color = Colors.white,
         );
         canvas.drawCircle(
           spot,
-          active ? 4.5 : 2.5,
-          Paint()..color = active ? Colors.red : colors[anchor.point.code]!,
+          active ? 4.8 : 2.5,
+          Paint()
+            ..color = active
+                ? const Color(0xFFE53935)
+                : colors[anchor.point.code]!.withValues(
+                    alpha: highlightCode == null ? 1 : 0.18,
+                  ),
         );
         if (showLabels || active) {
           final label = TextPainter(
             text: TextSpan(
-              text: anchor.point.code,
+              text: 'Huyệt ${anchor.point.code}',
               style: TextStyle(
                 fontSize: active ? 13 : 9,
-                color: Colors.black,
-                backgroundColor: const Color(0xDDFFFFFF),
+                color: active ? const Color(0xFF7A1D1D) : Colors.black,
                 fontWeight: FontWeight.bold,
               ),
             ),
             textDirection: TextDirection.ltr,
           )..layout();
-          final origin = spot + const Offset(5, -12);
-          final bounds = (origin & label.size).inflate(2);
+          final origin = Offset(
+            spot.dx + (active ? 16 : 6),
+            spot.dy - label.height / 2,
+          );
+          final bounds = Rect.fromLTWH(
+            origin.dx - 6,
+            origin.dy - 3,
+            label.width + 12,
+            label.height + 6,
+          );
           // Keep the selected code readable; suppress crowded passive labels.
           if (active || !occupiedLabels.any((rect) => rect.overlaps(bounds))) {
+            final rrect = RRect.fromRectAndRadius(
+              bounds,
+              const Radius.circular(8),
+            );
+            canvas.drawRRect(
+              rrect,
+              Paint()
+                ..color = active
+                    ? const Color(0xFFFFF6E0)
+                    : const Color(0xF2FFFFFF),
+            );
+            canvas.drawRRect(
+              rrect,
+              Paint()
+                ..color = active
+                    ? const Color(0xFFE8C56B)
+                    : const Color(0x66FFFFFF)
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = 1,
+            );
             label.paint(canvas, origin);
             occupiedLabels.add(bounds);
           }

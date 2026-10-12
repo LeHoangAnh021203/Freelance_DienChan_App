@@ -175,6 +175,26 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  testWidgets('Xem huyệt từ phác đồ mở đúng huyệt kèm nhãn nhận diện', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MultiDemoApp());
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).first, const Offset(0, -500));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Phác đồ điều trị bệnh'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Bồi bổ, thông khí huyết'));
+    await tester.pumpAndSettle();
+    expect(find.text('Xem huyệt'), findsWidgets);
+    await tester.tap(find.text('Xem huyệt').first);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Huyệt 26'), findsWidgets);
+    expect(find.textContaining('Giữa hai lông mày'), findsWidgets);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Khôi phục và xóa ảnh đại diện đã lưu', (tester) async {
     const avatar =
         'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a6XcAAAAASUVORK5CYII=';
