@@ -404,3 +404,6 @@ const bqcGridReferences = <String, BqcGridReference>{
 /// Only measured source dots are rendered. Grid-cell centers are not points.
 List<Offset> bqcFrontPositions(String code) =>
     bqcDigitizedFront[code] ?? const [];
+
+bool isBehindEarAcupoint(String code) =>
+    bqcGridReferences[code]?.row == 'Sau tai';

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hỗ trợ · {{APP_NAME}}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 640px; margin: 0 auto; padding: 24px 20px 48px; line-height: 1.6; color: #2c1a12; background: #fffaf5; }
+    h1 { color: #b55238; font-size: 1.6rem; }
+    h2 { color: #651b16; font-size: 1.15rem; margin-top: 28px; }
+    a { color: #b55238; }
+    form { background: #fff; border: 1px solid #f3c9a9; border-radius: 16px; padding: 18px; display: grid; gap: 12px; }
+    label { display: grid; gap: 4px; font-weight: 600; }
+    input, textarea { font: inherit; padding: 10px 12px; border: 1px solid #e4d4c4; border-radius: 10px; }
+    button { font: inherit; font-weight: 700; padding: 12px; border: 0; border-radius: 12px; background: #b55238; color: #fff; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    #result { font-weight: 600; }
+    .ok { color: #1d5c45; }
+    .error { color: #b3261e; }
+  </style>
+</head>
+<body>
+  <h1>Hỗ trợ DienChan</h1>
+  <p>Liên hệ {{CONTACT}}, Facebook "Buiminhtam dien chan". Trung tâm: 16 Kỳ Con, Phường Cầu Kiệu, TP. Hồ Chí Minh.</p>
+
+  <h2>Câu hỏi thường gặp</h2>
+  <ul>
+    <li><strong>Quên mật khẩu:</strong> trên màn hình đăng nhập chọn "Quên mật khẩu?" để nhận mã 6 số qua email.</li>
+    <li><strong>Xóa tài khoản:</strong> Hồ sơ → Bảo mật và riêng tư → Xóa tài khoản, hoặc tại <a href="/delete-account">trang xóa tài khoản</a>.</li>
+    <li><strong>Báo cáo nội dung xấu trong cộng đồng:</strong> nhấn giữ vào tin nhắn và chọn Báo cáo hoặc Chặn.</li>
+  </ul>
+
+  <h2>Gửi yêu cầu hỗ trợ</h2>
+  <form id="support-form">
+    <label>Email hoặc số điện thoại liên hệ
+      <input name="contact" required minlength="5" maxlength="120">
+    </label>
+    <label>Nội dung
+      <textarea name="message" rows="5" required minlength="10" maxlength="2000"></textarea>
+    </label>
+    <button type="submit">Gửi yêu cầu</button>
+    <div id="result" role="status"></div>
+  </form>
+
+  <p><a href="/privacy">Chính sách quyền riêng tư</a> · <a href="/terms">Điều khoản sử dụng</a></p>
+
+  <script>
+    const form = document.getElementById("support-form");
+    const result = document.getElementById("result");
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = form.querySelector("button");
+      button.disabled = true;
+      try {
+        const response = await fetch("/api/v1/support-requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contact: form.contact.value.trim(), message: form.message.value.trim() }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Có lỗi xảy ra, vui lòng thử lại.");
+        form.reset();
+        result.textContent = "Đã gửi. Chúng tôi sẽ liên hệ lại với bạn sớm.";
+        result.className = "ok";
+      } catch (error) {
+        result.textContent = error.message;
+        result.className = "error";
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

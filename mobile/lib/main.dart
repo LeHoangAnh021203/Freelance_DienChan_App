@@ -4,11 +4,15 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter, instantiateImageCodec, ImageByteFormat;
 
 import 'package:camera/camera.dart' as camera;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import 'api_client.dart';
 import 'face_alignment_result.dart';
 import 'face_3d_view.dart';
 import 'acupoint_calibration.dart';
@@ -16,6 +20,11 @@ import 'bqc_grid_reference.dart';
 import 'bqc_digitized.dart';
 import 'face_alignment_service.dart';
 
+part 'auth_pages.dart';
+part 'auth_session.dart';
+part 'community_chat.dart';
+part 'legal_contact.dart';
+part 'my_data_pages.dart';
 part 'profile_settings.dart';
 
 void main() {
@@ -23,7 +32,7 @@ void main() {
 }
 
 /// Shared unread count so chuông home luôn khớp màn Thông báo.
-final ValueNotifier<int> notificationUnreadCount = ValueNotifier<int>(3);
+final ValueNotifier<int> notificationUnreadCount = ValueNotifier<int>(0);
 
 /// Ảnh gương mặt người dùng để phủ bản đồ huyệt.
 final ValueNotifier<Uint8List?> userFacePhotoBytes = ValueNotifier<Uint8List?>(
@@ -31,22 +40,9 @@ final ValueNotifier<Uint8List?> userFacePhotoBytes = ValueNotifier<Uint8List?>(
 );
 final ValueNotifier<FaceAlignmentResult?> userFaceAlignment =
     ValueNotifier<FaceAlignmentResult?>(null);
-final ValueNotifier<_AppUserProfile?> _currentUserProfile =
-    ValueNotifier<_AppUserProfile?>(null);
-
-class _AppUserProfile {
-  const _AppUserProfile({
-    required this.fullName,
-    required this.phone,
-    required this.gmail,
-    required this.country,
-  });
-
-  final String fullName;
-  final String phone;
-  final String gmail;
-  final String country;
-}
+final ValueNotifier<ApiUser?> _currentUserProfile = ValueNotifier<ApiUser?>(
+  null,
+);
 
 class MultiDemoApp extends StatelessWidget {
   const MultiDemoApp({super.key});
@@ -75,11 +71,6 @@ class _AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<_AuthGate> {
-  static const _nameKey = 'profile_full_name';
-  static const _phoneKey = 'profile_phone';
-  static const _gmailKey = 'profile_gmail';
-  static const _countryKey = 'profile_country';
-
   bool _loading = true;
   Timer? _reminderTimer;
 
@@ -92,76 +83,31 @@ class _AuthGateState extends State<_AuthGate> {
   @override
   void initState() {
     super.initState();
-    _restoreProfile();
+    _api.onUnauthorized = () => unawaited(_signOutLocally());
+    _restore();
     _reminderTimer = Timer.periodic(
       const Duration(seconds: 15),
       (_) => _checkReminder(),
     );
   }
 
-  Future<void> _restoreProfile() async {
+  Future<void> _restore() async {
     try {
       final preferences = await SharedPreferences.getInstance().timeout(
         const Duration(seconds: 5),
       );
-      await _profileSettings.load(preferences);
-      await _profileSettings.restoreSchedule().timeout(
-        const Duration(seconds: 5),
-      );
-      final name = preferences.getString(_nameKey)?.trim() ?? '';
-      final phone = preferences.getString(_phoneKey)?.trim() ?? '';
-      final gmail = preferences.getString(_gmailKey)?.trim() ?? '';
-      final country = preferences.getString(_countryKey)?.trim() ?? '';
-      final profile =
-          name.isNotEmpty &&
-              phone.isNotEmpty &&
-              gmail.isNotEmpty &&
-              country.isNotEmpty
-          ? _AppUserProfile(
-              fullName: name,
-              phone: phone,
-              gmail: gmail,
-              country: country,
-            )
-          : null;
-      await _restoreAvatar(preferences, profile != null);
-      _currentUserProfile.value = profile;
+      _profileSettings.loadLocal(preferences);
+      await _restoreSession().timeout(const Duration(seconds: 12));
     } catch (error, stack) {
-      debugPrint('Profile restoration failed: $error\n$stack');
-      _currentUserProfile.value = null;
-      _profileAvatar.value = null;
-      _profileSettings.reminders = false;
+      debugPrint('Session restoration failed: $error\n$stack');
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(_showMedicalDisclaimerIfNeeded(context));
+        });
+      }
     }
-  }
-
-  static Future<void> _saveProfile(_AppUserProfile profile) async {
-    final preferences = await SharedPreferences.getInstance();
-    final results = await Future.wait([
-      preferences.setString(_nameKey, profile.fullName),
-      preferences.setString(_phoneKey, profile.phone),
-      preferences.setString(_gmailKey, profile.gmail),
-      preferences.setString(_countryKey, profile.country),
-    ]);
-    if (results.contains(false)) throw StateError('Không lưu được hồ sơ');
-    _currentUserProfile.value = profile;
-  }
-
-  Future<void> _logout() async {
-    final preferences = await SharedPreferences.getInstance();
-    final results = await Future.wait([
-      preferences.remove(_nameKey),
-      preferences.remove(_phoneKey),
-      preferences.remove(_gmailKey),
-      preferences.remove(_countryKey),
-      preferences.remove('profile_avatar'),
-    ]);
-    if (results.contains(false)) throw StateError('Không xóa được hồ sơ');
-    _profileAvatar.value = null;
-    _currentUserProfile.value = null;
-    userFacePhotoBytes.value = null;
-    userFaceAlignment.value = null;
   }
 
   @override
@@ -169,383 +115,11 @@ class _AuthGateState extends State<_AuthGate> {
     if (_loading) {
       return const Scaffold(
         body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF0F766E)),
+          child: CircularProgressIndicator(color: Color(0xFFB55238)),
         ),
       );
     }
     return DemoShell(preset: finflowPreset, onLogout: _logout);
-  }
-}
-
-Future<void> _openLoginPage(BuildContext context) async {
-  await Navigator.of(context).push<void>(
-    MaterialPageRoute(
-      builder: (loginContext) => _ProfileLoginPage(
-        onCompleted: (profile) async {
-          await _AuthGateState._saveProfile(profile);
-          if (loginContext.mounted) Navigator.of(loginContext).pop();
-        },
-      ),
-    ),
-  );
-}
-
-class _SignInPrompt extends StatelessWidget {
-  const _SignInPrompt();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      heightFactor: 1,
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Đăng nhập để tham gia cộng đồng Diện Chẩn.'),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: () => _openLoginPage(context),
-              icon: const Icon(Icons.login_rounded),
-              label: const Text('Đăng ký / Đăng nhập'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ProfileLoginPage extends StatefulWidget {
-  const _ProfileLoginPage({required this.onCompleted, this.initialProfile});
-
-  final _AppUserProfile? initialProfile;
-
-  final Future<void> Function(_AppUserProfile profile) onCompleted;
-
-  @override
-  State<_ProfileLoginPage> createState() => _ProfileLoginPageState();
-}
-
-class _ProfileLoginPageState extends State<_ProfileLoginPage> {
-  static const _countries = [
-    'Việt Nam',
-    'Hoa Kỳ',
-    'Canada',
-    'Úc',
-    'Nhật Bản',
-    'Hàn Quốc',
-    'Singapore',
-    'Thái Lan',
-    'Pháp',
-    'Đức',
-    'Quốc gia khác',
-  ];
-
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _gmailController = TextEditingController();
-  String _country = _countries.first;
-  bool _submitting = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final profile = widget.initialProfile;
-    if (profile != null) {
-      _nameController.text = profile.fullName;
-      _phoneController.text = profile.phone;
-      _gmailController.text = profile.gmail;
-      _country = profile.country;
-    }
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _phoneController.dispose();
-    _gmailController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    FocusScope.of(context).unfocus();
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() => _submitting = true);
-    try {
-      await widget.onCompleted(
-        _AppUserProfile(
-          fullName: _nameController.text.trim(),
-          phone: _phoneController.text.trim(),
-          gmail: _gmailController.text.trim().toLowerCase(),
-          country: _country,
-        ),
-      );
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không lưu được hồ sơ. Vui lòng thử lại.'),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
-  }
-
-  String? _validateName(String? value) {
-    final name = value?.trim() ?? '';
-    if (name.isEmpty) return 'Vui lòng nhập họ tên';
-    if (name.length < 3) return 'Họ tên cần có ít nhất 3 ký tự';
-    return null;
-  }
-
-  String? _validatePhone(String? value) {
-    final phone = (value ?? '').replaceAll(RegExp(r'[\s().-]'), '');
-    if (phone.isEmpty) return 'Vui lòng nhập số điện thoại';
-    if (!RegExp(r'^\+?[0-9]{8,15}$').hasMatch(phone)) {
-      return 'Số điện thoại chưa đúng định dạng';
-    }
-    return null;
-  }
-
-  String? _validateGmail(String? value) {
-    final gmail = value?.trim().toLowerCase() ?? '';
-    if (gmail.isEmpty) return 'Vui lòng nhập Gmail';
-    if (!RegExp(r'^[a-z0-9._%+-]+@gmail\.com$').hasMatch(gmail)) {
-      return 'Vui lòng nhập địa chỉ @gmail.com hợp lệ';
-    }
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFFF1E6),
-      appBar: AppBar(
-        title: Text(
-          widget.initialProfile == null
-              ? 'Đăng ký / Đăng nhập'
-              : 'Chỉnh sửa hồ sơ',
-        ),
-      ),
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 480),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFFCF9),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFF3C9A9)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x339A3412),
-                      blurRadius: 28,
-                      offset: Offset(0, 12),
-                    ),
-                  ],
-                ),
-                child: AutofillGroup(
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Align(
-                          alignment: Alignment.center,
-                          child: Container(
-                            width: 72,
-                            height: 72,
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                              gradient: LinearGradient(
-                                colors: [Color(0xFFB91C1C), Color(0xFFF97316)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.face_retouching_natural,
-                              color: Colors.white,
-                              size: 38,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Chào mừng đến với Diện Chẩn',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF651B16),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text(
-                          'Nhập thông tin để tạo hồ sơ và bắt đầu sử dụng ứng dụng.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Color(0xFF8A4B35),
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 22),
-                        TextFormField(
-                          controller: _nameController,
-                          textInputAction: TextInputAction.next,
-                          textCapitalization: TextCapitalization.words,
-                          autofillHints: const [AutofillHints.name],
-                          validator: _validateName,
-                          decoration: _inputDecoration(
-                            label: 'Họ và tên',
-                            hint: 'Nguyễn Văn An',
-                            icon: Icons.person_outline_rounded,
-                            accent: const Color(0xFFB91C1C),
-                            fill: const Color(0xFFFFF1F2),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        TextFormField(
-                          controller: _phoneController,
-                          keyboardType: TextInputType.phone,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.telephoneNumber],
-                          validator: _validatePhone,
-                          decoration: _inputDecoration(
-                            label: 'Số điện thoại',
-                            hint: '0901 234 567',
-                            icon: Icons.phone_outlined,
-                            accent: const Color(0xFFEA580C),
-                            fill: const Color(0xFFFFF7ED),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        TextFormField(
-                          controller: _gmailController,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.email],
-                          validator: _validateGmail,
-                          decoration: _inputDecoration(
-                            label: 'Gmail',
-                            hint: 'tenban@gmail.com',
-                            icon: Icons.mail_outline_rounded,
-                            accent: const Color(0xFFBE185D),
-                            fill: const Color(0xFFFDF2F8),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        DropdownButtonFormField<String>(
-                          initialValue: _country,
-                          decoration: _inputDecoration(
-                            label: 'Quốc gia',
-                            hint: 'Chọn quốc gia',
-                            icon: Icons.public_rounded,
-                            accent: const Color(0xFFB45309),
-                            fill: const Color(0xFFFFFBEB),
-                          ),
-                          items: _countries
-                              .map(
-                                (country) => DropdownMenuItem(
-                                  value: country,
-                                  child: Text(country),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) {
-                            if (value != null) setState(() => _country = value);
-                          },
-                        ),
-                        const SizedBox(height: 20),
-                        FilledButton.icon(
-                          onPressed: _submitting ? null : _submit,
-                          style: FilledButton.styleFrom(
-                            backgroundColor: const Color(0xFF9F1239),
-                            foregroundColor: const Color(0xFFFFF7ED),
-                            disabledBackgroundColor: const Color(0xFFD6A08B),
-                            minimumSize: const Size.fromHeight(54),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          icon: _submitting
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(Icons.login_rounded),
-                          label: Text(
-                            _submitting
-                                ? 'Đang lưu...'
-                                : widget.initialProfile == null
-                                ? 'Bắt đầu sử dụng'
-                                : 'Lưu thay đổi',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Thông tin được lưu cục bộ trên thiết bị và dùng để cá nhân hóa hồ sơ.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: Color(0xFF9A6654),
-                            fontSize: 12,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration({
-    required String label,
-    required String hint,
-    required IconData icon,
-    required Color accent,
-    required Color fill,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      prefixIcon: Icon(icon, color: accent),
-      labelStyle: TextStyle(color: accent, fontWeight: FontWeight.w600),
-      filled: true,
-      fillColor: fill,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: accent.withValues(alpha: 0.28)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: accent.withValues(alpha: 0.36)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: accent, width: 1.8),
-      ),
-    );
   }
 }
 
@@ -1569,7 +1143,7 @@ class CommunityTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<_AppUserProfile?>(
+    return ValueListenableBuilder<ApiUser?>(
       valueListenable: _currentUserProfile,
       builder: (context, profile, _) {
         if (profile != null) return _buildCommunity(context);
@@ -1582,7 +1156,7 @@ class CommunityTab extends StatelessWidget {
                   child: IgnorePointer(
                     child: ImageFiltered(
                       imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-                      child: _buildCommunity(context),
+                      child: _buildCommunity(context, preview: true),
                     ),
                   ),
                 ),
@@ -1608,9 +1182,14 @@ class CommunityTab extends StatelessWidget {
     );
   }
 
-  Widget _buildCommunity(BuildContext context) {
+  Widget _buildCommunity(BuildContext context, {bool preview = false}) {
     if (preset.id == 'finflow') {
-      return _FinflowCommunityTab(preset: preset);
+      // Keyed per account so switching users reloads the chat.
+      return _FinflowCommunityTab(
+        key: ValueKey(preview ? 'preview' : _currentUserProfile.value?.id),
+        preset: preset,
+        preview: preview,
+      );
     }
     if (preset.id == 'clinical') {
       return const _NestfindCommunityTab();
@@ -2897,7 +2476,7 @@ class _FinflowHomeTab extends StatelessWidget {
       children: [
         Row(
           children: [
-            ValueListenableBuilder<_AppUserProfile?>(
+            ValueListenableBuilder<ApiUser?>(
               valueListenable: _currentUserProfile,
               builder: (context, profile, _) {
                 final name = profile?.fullName.trim() ?? '';
@@ -2915,7 +2494,7 @@ class _FinflowHomeTab extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: ValueListenableBuilder<_AppUserProfile?>(
+              child: ValueListenableBuilder<ApiUser?>(
                 valueListenable: _currentUserProfile,
                 builder: (context, profile, _) {
                   return Column(
@@ -2996,86 +2575,170 @@ class _NotificationsPage extends StatefulWidget {
 
 class _NotificationsPageState extends State<_NotificationsPage> {
   int _filter = 0; // 0 all, 1 unread, 2 read
+  List<AppNotification> _items = const [];
+  bool _loading = true;
+  Object? _error;
 
-  final List<_NotificationItem> _items = [
-    const _NotificationItem(
-      title: 'Phác đồ an thần buổi tối',
-      subtitle: 'Huyệt 26 + 124',
-      amount: '+8 phút',
-      positive: true,
-      unread: true,
-    ),
-    const _NotificationItem(
-      title: 'Nhật ký giảm đau đầu',
-      subtitle: 'Đã lưu bệnh án sáng nay',
-      amount: '+1 bản ghi',
-      positive: true,
-      unread: true,
-    ),
-    const _NotificationItem(
-      title: 'Cảnh báo an toàn',
-      subtitle: 'Nếu đau kéo dài cần đi khám',
-      amount: '-Lưu ý',
-      positive: false,
-      unread: true,
-    ),
-    const _NotificationItem(
-      title: 'Nhắc giờ day huyệt',
-      subtitle: 'Đã hoàn thành lịch 20:00',
-      amount: 'Đã xem',
-      positive: true,
-      unread: false,
-    ),
-    const _NotificationItem(
-      title: 'Cập nhật nhóm cộng đồng',
-      subtitle: 'Nhóm Mất ngủ chủ động có bài mới',
-      amount: 'Đã xem',
-      positive: true,
-      unread: false,
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
 
-  List<_NotificationItem> get _visible {
-    if (_filter == 1) return _items.where((e) => e.unread).toList();
-    if (_filter == 2) return _items.where((e) => !e.unread).toList();
+  Future<void> _load() async {
+    if (_currentUserProfile.value == null) {
+      setState(() => _loading = false);
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final items = await _api.notifications();
+      if (!mounted) return;
+      setState(() => _items = items);
+      _syncUnreadBadge();
+    } catch (error) {
+      if (mounted) setState(() => _error = error);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  List<AppNotification> get _visible {
+    if (_filter == 1) return _items.where((e) => !e.read).toList();
+    if (_filter == 2) return _items.where((e) => e.read).toList();
     return _items;
   }
 
-  int get _unreadCount => _items.where((e) => e.unread).length;
+  int get _unreadCount => _items.where((e) => !e.read).length;
 
   void _syncUnreadBadge() {
     notificationUnreadCount.value = _unreadCount;
   }
 
-  void _markRead(int indexInVisible) {
-    final item = _visible[indexInVisible];
-    final realIndex = _items.indexOf(item);
-    if (realIndex < 0 || !_items[realIndex].unread) return;
+  Future<void> _markRead(AppNotification item) async {
+    if (item.read) return;
     setState(() {
-      _items[realIndex] = _items[realIndex].copyWith(unread: false);
+      _items = [
+        for (final entry in _items)
+          entry.id == item.id ? entry.markedRead() : entry,
+      ];
     });
     _syncUnreadBadge();
+    try {
+      await _api.markNotificationsRead([item.id]);
+    } catch (_) {
+      // The badge is corrected on the next refresh.
+    }
   }
 
-  void _markAllRead() {
+  Future<void> _markAllRead() async {
     setState(() {
-      for (var i = 0; i < _items.length; i++) {
-        _items[i] = _items[i].copyWith(unread: false);
-      }
+      _items = [for (final entry in _items) entry.markedRead()];
     });
     _syncUnreadBadge();
+    try {
+      await _api.markNotificationsRead();
+    } catch (error) {
+      if (mounted) _showApiError(context, error);
+    }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _syncUnreadBadge();
+  Widget _section(String title, List<AppNotification> items, String empty) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+        ),
+        const SizedBox(height: 8),
+        if (items.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              empty,
+              style: const TextStyle(color: Color(0xFF74867A), fontSize: 13),
+            ),
+          )
+        else
+          ...items.map(
+            (item) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: _NotificationTile(
+                item: item,
+                onTap: item.read ? null : () => _markRead(item),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final unread = _visible.where((e) => e.unread).toList();
-    final read = _visible.where((e) => !e.unread).toList();
+    final signedIn = _currentUserProfile.value != null;
+    final unread = _visible.where((e) => !e.read).toList();
+    final read = _visible.where((e) => e.read).toList();
+
+    Widget body;
+    if (!signedIn) {
+      body = const _SignInPrompt(
+        message: 'Đăng nhập để nhận thông báo khóa học và cộng đồng.',
+      );
+    } else if (_loading && _items.isEmpty) {
+      body = const Center(child: CircularProgressIndicator());
+    } else if (_error != null && _items.isEmpty) {
+      body = Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Không tải được thông báo.'),
+            const SizedBox(height: 12),
+            OutlinedButton(onPressed: _load, child: const Text('Thử lại')),
+          ],
+        ),
+      );
+    } else {
+      body = RefreshIndicator(
+        onRefresh: _load,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          children: [
+            Row(
+              children: [
+                _NotiFilterChip(
+                  label: 'Tất cả',
+                  selected: _filter == 0,
+                  onTap: () => setState(() => _filter = 0),
+                ),
+                const SizedBox(width: 8),
+                _NotiFilterChip(
+                  label: 'Chưa đọc ($_unreadCount)',
+                  selected: _filter == 1,
+                  onTap: () => setState(() => _filter = 1),
+                ),
+                const SizedBox(width: 8),
+                _NotiFilterChip(
+                  label: 'Đã đọc',
+                  selected: _filter == 2,
+                  onTap: () => setState(() => _filter = 2),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (_filter != 2)
+              _section('Chưa đọc', unread, 'Không có thông báo chưa đọc'),
+            if (_filter == 0) const SizedBox(height: 6),
+            if (_filter != 1)
+              _section('Đã đọc', read, 'Chưa có thông báo đã đọc'),
+          ],
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6EFE6),
@@ -3101,105 +2764,7 @@ class _NotificationsPageState extends State<_NotificationsPage> {
             ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
-          Row(
-            children: [
-              _NotiFilterChip(
-                label: 'Tất cả',
-                selected: _filter == 0,
-                onTap: () => setState(() => _filter = 0),
-              ),
-              const SizedBox(width: 8),
-              _NotiFilterChip(
-                label: 'Chưa đọc ($_unreadCount)',
-                selected: _filter == 1,
-                onTap: () => setState(() => _filter = 1),
-              ),
-              const SizedBox(width: 8),
-              _NotiFilterChip(
-                label: 'Đã đọc',
-                selected: _filter == 2,
-                onTap: () => setState(() => _filter = 2),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          if (_filter != 2) ...[
-            const Text(
-              'Chưa đọc',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            if (unread.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 12),
-                child: Text(
-                  'Không có thông báo chưa đọc',
-                  style: TextStyle(color: Color(0xFF74867A), fontSize: 13),
-                ),
-              )
-            else
-              ...unread.asMap().entries.map((entry) {
-                final item = entry.value;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _NotificationTile(
-                    item: item,
-                    onTap: () => _markRead(_visible.indexOf(item)),
-                  ),
-                );
-              }),
-          ],
-          if (_filter != 1) ...[
-            if (_filter == 0) const SizedBox(height: 6),
-            const Text(
-              'Đã đọc',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-            ),
-            const SizedBox(height: 8),
-            if (read.isEmpty)
-              const Text(
-                'Chưa có thông báo đã đọc',
-                style: TextStyle(color: Color(0xFF74867A), fontSize: 13),
-              )
-            else
-              ...read.map(
-                (item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: _NotificationTile(item: item),
-                ),
-              ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _NotificationItem {
-  const _NotificationItem({
-    required this.title,
-    required this.subtitle,
-    required this.amount,
-    required this.positive,
-    required this.unread,
-  });
-
-  final String title;
-  final String subtitle;
-  final String amount;
-  final bool positive;
-  final bool unread;
-
-  _NotificationItem copyWith({bool? unread}) {
-    return _NotificationItem(
-      title: title,
-      subtitle: subtitle,
-      amount: amount,
-      positive: positive,
-      unread: unread ?? this.unread,
+      body: body,
     );
   }
 }
@@ -3244,13 +2809,21 @@ class _NotiFilterChip extends StatelessWidget {
 class _NotificationTile extends StatelessWidget {
   const _NotificationTile({required this.item, this.onTap});
 
-  final _NotificationItem item;
+  final AppNotification item;
   final VoidCallback? onTap;
+
+  static const _icons = {
+    'course': Icons.school_rounded,
+    'warning': Icons.warning_amber_rounded,
+    'community': Icons.forum_rounded,
+  };
 
   @override
   Widget build(BuildContext context) {
+    final unread = !item.read;
+    final warning = item.kind == 'warning';
     return Material(
-      color: item.unread ? const Color(0xFFEFF7F0) : Colors.white,
+      color: unread ? const Color(0xFFEFF7F0) : Colors.white,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -3260,9 +2833,7 @@ class _NotificationTile extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: item.unread
-                  ? const Color(0xFFBFD9C6)
-                  : const Color(0xFFE8ECE9),
+              color: unread ? const Color(0xFFBFD9C6) : const Color(0xFFE8ECE9),
             ),
           ),
           child: Row(
@@ -3272,19 +2843,17 @@ class _NotificationTile extends StatelessWidget {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: item.positive
-                      ? const Color(0xFFF4E4D4)
-                      : const Color(0xFFFCEBEA),
+                  color: warning
+                      ? const Color(0xFFFCEBEA)
+                      : const Color(0xFFF4E4D4),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  item.positive
-                      ? Icons.arrow_upward_rounded
-                      : Icons.warning_amber_rounded,
+                  _icons[item.kind] ?? Icons.notifications_active_outlined,
                   size: 18,
-                  color: item.positive
-                      ? const Color(0xFFB55238)
-                      : const Color(0xFFD24E49),
+                  color: warning
+                      ? const Color(0xFFD24E49)
+                      : const Color(0xFFB55238),
                 ),
               ),
               const SizedBox(width: 10),
@@ -3293,9 +2862,8 @@ class _NotificationTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        if (item.unread) ...[
+                        if (unread) ...[
                           Container(
                             width: 8,
                             height: 8,
@@ -3310,7 +2878,7 @@ class _NotificationTile extends StatelessWidget {
                           child: Text(
                             item.title,
                             style: TextStyle(
-                              fontWeight: item.unread
+                              fontWeight: unread
                                   ? FontWeight.w800
                                   : FontWeight.w600,
                             ),
@@ -3318,39 +2886,26 @@ class _NotificationTile extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      item.subtitle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF74867A),
+                    if (item.body.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        item.body,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF74867A),
+                        ),
                       ),
-                    ),
+                    ],
                     const SizedBox(height: 4),
                     Text(
-                      item.unread ? 'Chưa đọc' : 'Đã đọc',
-                      style: TextStyle(
+                      _formatDateTime(item.createdAt),
+                      style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: item.unread
-                            ? const Color(0xFF1D5C45)
-                            : const Color(0xFF8A9490),
+                        color: Color(0xFF8A9490),
                       ),
                     ),
                   ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  item.amount,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: item.positive
-                        ? const Color(0xFF1D5C45)
-                        : const Color(0xFFD24E49),
-                  ),
                 ),
               ),
             ],
@@ -4096,15 +3651,6 @@ class _LegacyModulePage extends StatelessWidget {
               : module.title,
         ),
         backgroundColor: module.colors.first,
-        actions: isHuyet
-            ? null
-            : [
-                IconButton(
-                  tooltip: 'Tìm kiếm',
-                  onPressed: () {},
-                  icon: const Icon(Icons.search_rounded),
-                ),
-              ],
       ),
       body: body,
     );
@@ -4128,7 +3674,8 @@ class _AcupointLookupPageBody extends StatefulWidget {
 class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
     with SingleTickerProviderStateMixin {
   static const _accent = Color(0xFFA65B38);
-  static const _diagrams = ['H. 1', 'H. 2', 'H. 3'];
+  // Index 0 is the front view, 1 the side view.
+  static const _diagrams = ['H. 1', 'H. 2'];
 
   bool _show3D = true;
   bool _showPoints = false;
@@ -4193,38 +3740,20 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
         : selected != null
         ? [selected]
         : (_showPoints ? _points : const <_Acupoint>[]);
-    return [
-      for (final p in visible)
-        if (p.frontPositions.isNotEmpty)
-          for (final position in p.frontPositions)
-            FacePoint(
-              p.code,
-              position,
-              p.tone == _PointTone.red
-                  ? const Color(0xFFE53935)
-                  : const Color(0xFF5DA9C4),
-            )
-        else if (bqcSideSourceDots[p.code] case final position?)
-          for (final projection in [
-            FacePointProjection.rightProfile,
-            FacePointProjection.leftProfile,
-          ])
-            FacePoint(
-              p.code,
-              position,
-              p.tone == _PointTone.red
-                  ? const Color(0xFFE53935)
-                  : const Color(0xFF5DA9C4),
-              projection: projection,
-            ),
-    ];
+    return _faceMarkersFor(visible);
   }
 
   List<_Acupoint> get _points => _dienChanAcupointCatalog;
   List<_Acupoint> get _matched {
     final q = _query.trim();
     if (q.isEmpty) return _points;
-    return _points.where((p) => p.code.contains(q)).toList();
+    final needle = q.toLowerCase();
+    return _points
+        .where(
+          (p) =>
+              p.code.contains(q) || p.subtitle.toLowerCase().contains(needle),
+        )
+        .toList();
   }
 
   void _showAllOnFace() {
@@ -4371,9 +3900,7 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
                             Expanded(
                               child: FilledButton(
                                 onPressed: () {
-                                  _selectCode(
-                                    buffer.isEmpty ? null : buffer,
-                                  );
+                                  _selectCode(buffer.isEmpty ? null : buffer);
                                   Navigator.pop(sheetContext);
                                 },
                                 style: FilledButton.styleFrom(
@@ -4405,6 +3932,23 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
           },
         );
       },
+    );
+  }
+
+  String? get _focusedCode {
+    if (_selectedCode != null) return _selectedCode;
+    final matched = _matched;
+    return matched.length == 1 ? matched.first.code : null;
+  }
+
+  String get _focusedCodeLabel {
+    final code = _focusedCode;
+    return code == null ? 'Chọn một huyệt trước' : 'Huyệt $code';
+  }
+
+  void _askToPickPoint() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Hãy chọn một huyệt trên bản đồ trước.')),
     );
   }
 
@@ -4442,17 +3986,55 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
                   color: _accent,
                 ),
                 title: const Text('Thêm vào yêu thích'),
-                onTap: () => Navigator.pop(sheetContext),
+                subtitle: Text(_focusedCodeLabel),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  final code = _focusedCode;
+                  if (code == null) return _askToPickPoint();
+                  _saveBookmark(
+                    context,
+                    targetType: 'acupoint',
+                    targetId: code,
+                    title: 'Huyệt $code',
+                  );
+                },
               ),
               ListTile(
                 leading: const Icon(Icons.note_add_outlined, color: _accent),
                 title: const Text('Thêm ghi chú huyệt'),
-                onTap: () => Navigator.pop(sheetContext),
+                subtitle: const Text('Lưu vào nhật ký cá nhân'),
+                onTap: () async {
+                  Navigator.pop(sheetContext);
+                  final code = _focusedCode;
+                  if (code == null) return _askToPickPoint();
+                  final entry = await _showJournalEditor(
+                    context,
+                    initialTitle: 'Day huyệt $code',
+                    relatedType: 'acupoint',
+                    relatedId: code,
+                  );
+                  if (entry != null && mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Đã lưu vào nhật ký.')),
+                    );
+                  }
+                },
               ),
               ListTile(
                 leading: const Icon(Icons.assignment_add, color: _accent),
-                title: const Text('Thêm vào phác đồ'),
-                onTap: () => Navigator.pop(sheetContext),
+                title: const Text('Thêm vào phác đồ cá nhân'),
+                subtitle: Text(_focusedCodeLabel),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  final code = _focusedCode;
+                  if (code == null) return _askToPickPoint();
+                  _saveBookmark(
+                    context,
+                    targetType: 'protocol',
+                    targetId: code,
+                    title: 'Huyệt $code',
+                  );
+                },
               ),
             ],
           ),
@@ -4675,7 +4257,9 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
                     const SizedBox(width: 6),
                     _HuyetSquareButton(
                       label: _diagrams[_diagramIndex],
-                      onTap: () {},
+                      onTap: () => setState(() {
+                        _diagramIndex = (_diagramIndex + 1) % _diagrams.length;
+                      }),
                     ),
                     const Spacer(),
                     _HuyetSquareButton(
@@ -4729,24 +4313,15 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
 enum _PointTone { blue, red, green }
 
 class _Acupoint {
-  const _Acupoint(
-    this.code,
-    this._originalPos,
-    this._originalSubtitle,
-    this.tone,
-  );
+  const _Acupoint(this.code, this._originalPos, this.tone);
 
   final String code;
   final Offset _originalPos;
-  final String _originalSubtitle;
   List<Offset> get frontPositions => bqcFrontPositions(code);
 
   Offset get pos =>
       frontPositions.isNotEmpty ? frontPositions.first : _originalPos;
-  String get subtitle =>
-      acupointCalibrations[code]?.location ??
-      bqcGridReferences[code]?.description ??
-      _originalSubtitle;
+  String get subtitle => acupointLocationLabel(code);
   final _PointTone tone;
 
   /// Quy đổi sang mặt nghiêng (nhìn nghiêng trái: mũi bên trái khung, tai bên phải khung).
@@ -4765,17 +4340,13 @@ class _Acupoint {
 
 /// Danh mục huyệt dùng chung cho Tra Huyệt + chi tiết bệnh.
 final _dienChanAcupointCatalog = () {
-  final entries =
-      bqcGridReferences.entries
-          .where((entry) => entry.value.row != 'Sau tai')
-          .toList()
-        ..sort((a, b) => int.parse(a.key).compareTo(int.parse(b.key)));
+  final entries = bqcGridReferences.entries.toList()
+    ..sort((a, b) => int.parse(a.key).compareTo(int.parse(b.key)));
   return [
     for (var i = 0; i < entries.length; i++)
       _Acupoint(
         entries[i].key,
         bqcFrontPositions(entries[i].key).firstOrNull ?? const Offset(0.5, 0.5),
-        entries[i].value.description,
         i.isEven ? _PointTone.red : _PointTone.blue,
       ),
   ];
@@ -4793,16 +4364,51 @@ List<_Acupoint> _acupointsForCodes(Iterable<String> codes) {
   for (final code in codes) {
     final known = _acupointByCode(code);
     result.add(
-      known ??
-          _Acupoint(
-            code,
-            const Offset(0.50, 0.50),
-            'Huyệt $code',
-            _PointTone.blue,
-          ),
+      known ?? _Acupoint(code, const Offset(0.50, 0.50), _PointTone.blue),
     );
   }
   return result;
+}
+
+List<FacePoint> _faceMarkersFor(Iterable<_Acupoint> points) {
+  return [
+    for (final p in points)
+      if (p.frontPositions.isNotEmpty)
+        for (final position in p.frontPositions)
+          FacePoint(
+            p.code,
+            position,
+            p.tone == _PointTone.red
+                ? const Color(0xFFE53935)
+                : const Color(0xFF5DA9C4),
+          )
+      else if (isBehindEarAcupoint(p.code))
+        for (final projection in [
+          FacePointProjection.behindRightEar,
+          FacePointProjection.behindLeftEar,
+        ])
+          FacePoint(
+            p.code,
+            Offset.zero,
+            p.tone == _PointTone.red
+                ? const Color(0xFFE53935)
+                : const Color(0xFF5DA9C4),
+            projection: projection,
+          )
+      else if (bqcSideSourceDots[p.code] case final position?)
+        for (final projection in [
+          FacePointProjection.rightProfile,
+          FacePointProjection.leftProfile,
+        ])
+          FacePoint(
+            p.code,
+            position,
+            p.tone == _PointTone.red
+                ? const Color(0xFFE53935)
+                : const Color(0xFF5DA9C4),
+            projection: projection,
+          ),
+  ];
 }
 
 class _AcupointFocusBanner extends StatelessWidget {
@@ -4852,7 +4458,7 @@ class _AcupointFocusBanner extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    point.subtitle,
+                    'Vị trí: ${point.subtitle}',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -5101,9 +4707,9 @@ class _FaceOverlayPainter extends CustomPainter {
         final isHighlight = highlightCode == point.code;
         final color = isHighlight
             ? const Color(0xFFE53E4E)
-            : _toneColor(point.tone).withValues(
-                alpha: highlightCode == null ? 1 : 0.22,
-              );
+            : _toneColor(
+                point.tone,
+              ).withValues(alpha: highlightCode == null ? 1 : 0.22);
         if (isHighlight) {
           final wave = (math.sin(pulse * math.pi * 2) + 1) / 2;
           canvas.drawCircle(
@@ -5294,22 +4900,23 @@ class _ProtocolDetailPage extends StatelessWidget {
         children: [
           const _SafetyNoteCard(),
           const SizedBox(height: 12),
-          ...steps.asMap().entries.map(
-            (entry) => _LegacyInfoTile(
+          ...steps.asMap().entries.map((entry) {
+            final code = entry.value.replaceFirst('Huyệt ', '');
+            return _LegacyInfoTile(
               title: 'Bước ${entry.key + 1}: ${entry.value}',
-              subtitle: 'Day ấn 30-60 giây, theo dõi cảm giác vùng mặt',
+              subtitle: '${acupointLocationLabel(code)} · day ấn 30–60 giây',
               trailing: 'Xem huyệt',
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => _LegacyModulePage(
                     module: dienChanModules.first,
-                    initialCode: entry.value.replaceFirst('Huyệt ', ''),
+                    initialCode: code,
                   ),
                 ),
               ),
-            ),
-          ),
+            );
+          }),
         ],
       ),
     );
@@ -5344,49 +4951,58 @@ class _ReflexMapListPageBody extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
       children: _maps
           .map(
-            (map) => Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFDCE7E1)),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x14000000),
-                    blurRadius: 10,
-                    offset: Offset(0, 3),
-                  ),
-                ],
+            (map) => GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      _ReflexMapViewerPage(title: map.title, asset: map.asset),
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    height: 168,
-                    child: ColoredBox(
-                      color: const Color(0xFFF7FBFA),
-                      child: Image.asset(
-                        map.asset,
-                        fit: BoxFit.contain,
-                        alignment: Alignment.center,
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFFDCE7E1)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x14000000),
+                      blurRadius: 10,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      height: 168,
+                      child: ColoredBox(
+                        color: const Color(0xFFF7FBFA),
+                        child: Image.asset(
+                          map.asset,
+                          fit: BoxFit.contain,
+                          alignment: Alignment.center,
+                        ),
                       ),
                     ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    color: const Color(0xFF71BFB5),
-                    child: Text(
-                      map.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      color: const Color(0xFF71BFB5),
+                      child: Text(
+                        map.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           )
@@ -5417,44 +5033,51 @@ class _ToolCatalogPageBody extends StatelessWidget {
         childAspectRatio: 0.78,
       ),
       itemCount: tools.length,
-      itemBuilder: (_, i) {
-        return Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: Colors.white,
+      itemBuilder: (context, i) {
+        return Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFDCE7E1)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Center(
-                  child: Transform.rotate(
-                    angle: i.isEven ? -0.25 : 0.25,
-                    child: Container(
-                      width: 96,
-                      height: 14,
-                      decoration: BoxDecoration(
-                        color: i.isEven
-                            ? const Color(0xFF2E2E2E)
-                            : const Color(0xFF8B5B35),
-                        borderRadius: BorderRadius.circular(20),
+            onTap: () => _showToolContactSheet(context, tools[i]),
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFDCE7E1)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: Transform.rotate(
+                        angle: i.isEven ? -0.25 : 0.25,
+                        child: Container(
+                          width: 96,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: i.isEven
+                                ? const Color(0xFF2E2E2E)
+                                : const Color(0xFF8B5B35),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                  Text(
+                    tools[i].toUpperCase(),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                tools[i].toUpperCase(),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 11,
-                ),
-              ),
-            ],
+            ),
           ),
         );
       },
@@ -5462,8 +5085,77 @@ class _ToolCatalogPageBody extends StatelessWidget {
   }
 }
 
-class _CourseSignupPageBody extends StatelessWidget {
+class _CourseSignupPageBody extends StatefulWidget {
   const _CourseSignupPageBody();
+
+  @override
+  State<_CourseSignupPageBody> createState() => _CourseSignupPageBodyState();
+}
+
+class _CourseSignupPageBodyState extends State<_CourseSignupPageBody> {
+  static const _courses = {
+    'K48-OFFLINE': 'Khóa 48 - Offline',
+    'K49-ONLINE': 'Khóa 49 - Online',
+  };
+
+  final _formKey = GlobalKey<FormState>();
+  late final _nameController = TextEditingController(
+    text: _currentUserProfile.value?.fullName ?? '',
+  );
+  late final _phoneController = TextEditingController(
+    text: _currentUserProfile.value?.phone ?? '',
+  );
+  final _noteController = TextEditingController();
+  String _courseCode = _courses.keys.first;
+  bool _busy = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _busy = true);
+    try {
+      final registration = await _api.registerCourse(
+        courseCode: _courseCode,
+        fullName: _nameController.text.trim(),
+        phone: _phoneController.text.trim(),
+        note: _noteController.text.trim(),
+      );
+      unawaited(_refreshStats());
+      if (!mounted) return;
+      _noteController.clear();
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          icon: const Icon(
+            Icons.check_circle_rounded,
+            color: Color(0xFF2E7D32),
+          ),
+          title: const Text('Đã gửi đăng ký'),
+          content: Text(
+            'Trung tâm đã nhận đăng ký ${registration.courseName} của bạn và sẽ liên hệ qua số ${_phoneController.text.trim()} để xác nhận.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Đóng'),
+            ),
+          ],
+        ),
+      );
+    } catch (error) {
+      if (mounted) _showApiError(context, error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -5547,44 +5239,102 @@ class _CourseSignupPageBody extends StatelessWidget {
             ),
           ),
         ),
-        const _LegacyInfoTile(
-          title: 'Điện thoại: 0903.888.397',
+        _LegacyInfoTile(
+          title: 'Điện thoại: $_hotlineDisplay',
           subtitle: 'Facebook: Buiminhtam dien chan',
           trailing: 'Gọi',
+          onTap: () => _callHotline(context),
         ),
-        const _LegacyInfoTile(
+        _LegacyInfoTile(
           title: 'Trung Tâm Diện Chẩn Việt Y Đạo Bùi Quốc Châu',
-          subtitle: '16 Kỳ Con, Phường Cầu Kiệu, TP. Hồ Chí Minh',
+          subtitle: _centerAddress,
           trailing: 'Bản đồ',
+          onTap: () => _openCenterMap(context),
         ),
         const SizedBox(height: 8),
-        TextField(
-          decoration: InputDecoration(
-            labelText: 'Họ tên học viên',
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Chọn khóa học',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+              ),
+              const SizedBox(height: 8),
+              SegmentedButton<String>(
+                segments: _courses.entries
+                    .map(
+                      (course) => ButtonSegment(
+                        value: course.key,
+                        label: Text(course.value),
+                      ),
+                    )
+                    .toList(),
+                selected: {_courseCode},
+                showSelectedIcon: false,
+                onSelectionChanged: (value) =>
+                    setState(() => _courseCode = value.first),
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _nameController,
+                textCapitalization: TextCapitalization.words,
+                validator: _validateFullName,
+                decoration: InputDecoration(
+                  labelText: 'Họ tên học viên',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                validator: (value) => (value?.trim().isEmpty ?? true)
+                    ? 'Vui lòng nhập số điện thoại'
+                    : _validateOptionalPhone(value),
+                decoration: InputDecoration(
+                  labelText: 'Số điện thoại',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _noteController,
+                maxLines: 2,
+                maxLength: 1000,
+                decoration: InputDecoration(
+                  labelText: 'Ghi chú (không bắt buộc)',
+                  hintText: 'Thời gian có thể liên hệ, câu hỏi về khóa học...',
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 4),
+              FilledButton.icon(
+                onPressed: _busy ? null : _submit,
+                icon: _busy
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send_rounded),
+                label: Text(_busy ? 'Đang gửi...' : 'Đăng ký khóa học'),
+              ),
+            ],
           ),
-        ),
-        const SizedBox(height: 10),
-        TextField(
-          keyboardType: TextInputType.phone,
-          decoration: InputDecoration(
-            labelText: 'Số điện thoại',
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Đã ghi nhận đăng ký khóa học')),
-            );
-          },
-          icon: const Icon(Icons.send_rounded),
-          label: const Text('Đăng ký khóa học'),
         ),
       ],
     );
@@ -6821,16 +6571,11 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
     for (final d in widget.disease.details) {
       if (d.code == code) return d;
     }
-    final point = _acupointByCode(code);
     return _DiseasePointDetail(
       code: code,
       contraindication:
           'Kiểm tra chống chỉ định của huyệt $code trước khi sử dụng',
-      effects: [
-        point?.subtitle ?? 'Huyệt $code trong phác đồ',
-        'Day ấn nhẹ 30–60 giây mỗi điểm',
-        'Theo dõi cảm giác vùng mặt',
-      ],
+      effects: ['Day ấn nhẹ 30–60 giây mỗi điểm', 'Theo dõi cảm giác vùng mặt'],
     );
   }
 
@@ -6883,64 +6628,18 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
         children: [
           Container(
-            height: 260,
+            height: 360,
             decoration: BoxDecoration(
-              color: const Color(0xFF1A2420),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFE2E8E4)),
             ),
             clipBehavior: Clip.antiAlias,
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 6,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(10),
-                        child: Image.asset(
-                          'assets/images/dienchan_face_front.png',
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                      CustomPaint(
-                        painter: _FaceOverlayPainter(
-                          showGrid: true,
-                          showPoints: true,
-                          showLabels: true,
-                          points: mapPoints,
-                          highlightCode: activeCode,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  flex: 4,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(0, 10, 10, 10),
-                        child: Image.asset(
-                          'assets/images/dienchan_face_side.png',
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                      CustomPaint(
-                        painter: _FaceOverlayPainter(
-                          showGrid: true,
-                          showPoints: true,
-                          showLabels: true,
-                          points: mapPoints,
-                          highlightCode: activeCode,
-                          useSideView: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            child: Face3DPage(
+              embedded: true,
+              markers: _faceMarkersFor(mapPoints),
+              highlightCode: activeCode,
+              showLabels: true,
             ),
           ),
           const SizedBox(height: 12),
@@ -6957,17 +6656,35 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
                 ...disease.points.map(
                   (code) => Padding(
                     padding: const EdgeInsets.only(left: 8),
-                    child: _PointChip(
-                      label: code,
-                      selected: _selectedCode == code,
-                      warn: disease.details.any((d) => d.code == code),
-                      onTap: () => setState(() => _selectedCode = code),
+                    child: Tooltip(
+                      message: acupointLocationLabel(code),
+                      child: _PointChip(
+                        label: code,
+                        selected: _selectedCode == code,
+                        warn: disease.details.any((d) => d.code == code),
+                        onTap: () => setState(() => _selectedCode = code),
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
           ),
+          if (activeCode != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 8, 0, 0),
+              child: Text(
+                [
+                  'Huyệt $activeCode · ${acupointLocationLabel(activeCode)}',
+                  ?acupointViewHint(activeCode),
+                ].join(' '),
+                style: const TextStyle(
+                  color: Color(0xFFA65B38),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12.5,
+                ),
+              ),
+            ),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.all(12),
@@ -7018,18 +6735,72 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: disease.points
-                        .map(
-                          (code) => ActionChip(
-                            label: Text(code),
-                            onPressed: () =>
-                                setState(() => _selectedCode = code),
+                  ...disease.points.map(
+                    (code) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Material(
+                        color: const Color(0xFFF6FAF4),
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => setState(() => _selectedCode = code),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  alignment: Alignment.center,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF1D5C45),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Text(
+                                    code,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Huyệt $code',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      Text(
+                                        acupointLocationLabel(code),
+                                        style: const TextStyle(
+                                          color: Color(0xFF728076),
+                                          fontSize: 13,
+                                          height: 1.3,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: Color(0xFF9AA89F),
+                                ),
+                              ],
+                            ),
                           ),
-                        )
-                        .toList(),
+                        ),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -7058,11 +6829,11 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _acupointByCode(detail.code)?.subtitle ??
-                              'Huyệt ${detail.code}',
+                          acupointLocationLabel(detail.code),
                           style: const TextStyle(
                             color: Color(0xFF728076),
                             fontSize: 13,
+                            height: 1.3,
                           ),
                         ),
                       ),
@@ -7084,6 +6855,40 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
                     ],
                   ),
                   const SizedBox(height: 6),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F8F5),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFC5D9CC)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Vị trí',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1D5C45),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(acupointLocationLabel(detail.code)),
+                        if (acupointViewHint(detail.code) case final hint?) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            hint,
+                            style: const TextStyle(
+                              color: Color(0xFF728076),
+                              fontSize: 12.5,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
@@ -7184,526 +6989,6 @@ class _PointChip extends StatelessWidget {
             ],
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _FinflowCommunityTab extends StatefulWidget {
-  const _FinflowCommunityTab({required this.preset});
-
-  final DemoPreset preset;
-
-  @override
-  State<_FinflowCommunityTab> createState() => _FinflowCommunityTabState();
-}
-
-class _FinflowCommunityTabState extends State<_FinflowCommunityTab> {
-  final TextEditingController _messageController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
-  final List<_CommunityChatMessage> _messages = [
-    const _CommunityChatMessage(
-      author: 'Cộng đồng Diện Chẩn',
-      body:
-          'Chào mừng bạn đến khung chat chung. Mọi người có thể đặt câu hỏi, chia sẻ kinh nghiệm và trao đổi nhanh tại đây.',
-      time: '09:20',
-      isMine: false,
-    ),
-    const _CommunityChatMessage(
-      author: 'Minh Tâm',
-      member: _OnlineUser(name: 'Bùi Minh Tâm', country: 'Việt Nam'),
-      body: 'Có ai có phác đồ nhẹ cho đau vai gáy buổi sáng không ạ?',
-      time: '09:24',
-      isMine: false,
-    ),
-    const _CommunityChatMessage(
-      author: 'Bạn',
-      body:
-          'Bạn thử ghi lại vị trí đau và mức độ đau trước, rồi tra nhóm huyệt phản chiếu cổ vai gáy nhé.',
-      time: '09:27',
-      isMine: true,
-    ),
-    const _CommunityChatMessage(
-      author: 'Hoàng Anh',
-      member: _OnlineUser(name: 'Lê Hoàng Anh', country: 'Việt Nam'),
-      body: 'Mình đã lưu lại, tối nay sẽ thử và cập nhật kết quả.',
-      time: '09:31',
-      isMine: false,
-    ),
-  ];
-
-  void _openOnlineUsers(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (_) => const _OnlineUsersSheet(),
-    );
-  }
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _sendMessage() {
-    final text = _messageController.text.trim();
-    if (text.isEmpty) return;
-
-    final now = TimeOfDay.now();
-    setState(() {
-      _messages.add(
-        _CommunityChatMessage(
-          author: 'Bạn',
-          body: text,
-          time:
-              '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
-          isMine: true,
-        ),
-      );
-      _messageController.clear();
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_scrollController.hasClients) return;
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 240),
-        curve: Curves.easeOutCubic,
-      );
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      key: const ValueKey('finflow-community'),
-      children: [
-        Container(
-          margin: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFF211610),
-            borderRadius: BorderRadius.circular(22),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 18,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD7F266),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.forum_rounded,
-                  color: Color(0xFF213319),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Chat cộng đồng',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 18,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Mở cho tất cả người dùng',
-                      style: TextStyle(
-                        color: Color(0xFFD9CEC5),
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Material(
-                color: const Color(0xFF2E644D),
-                borderRadius: BorderRadius.circular(999),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(999),
-                  onTap: () => _openOnlineUsers(context),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Color(0xFF7CFF9C),
-                            shape: BoxShape.circle,
-                          ),
-                          child: SizedBox(width: 7, height: 7),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${_onlineUsers.length} online',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 12),
-            itemCount: _messages.length,
-            itemBuilder: (context, index) {
-              return _CommunityChatBubble(message: _messages[index]);
-            },
-          ),
-        ),
-        SafeArea(
-          top: false,
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: const Color(0xFFE7DCD1)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 14,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    minLines: 1,
-                    maxLines: 4,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendMessage(),
-                    decoration: const InputDecoration(
-                      hintText: 'Nhắn tin vào cộng đồng...',
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Material(
-                  color: const Color(0xFFB55238),
-                  borderRadius: BorderRadius.circular(16),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: _sendMessage,
-                    child: const SizedBox(
-                      width: 44,
-                      height: 44,
-                      child: Icon(
-                        Icons.arrow_upward_rounded,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _OnlineUser {
-  const _OnlineUser({required this.name, required this.country});
-
-  final String name;
-  final String country;
-}
-
-const _onlineUsers = <_OnlineUser>[
-  _OnlineUser(name: 'Bùi Minh Tâm', country: 'Việt Nam'),
-  _OnlineUser(name: 'Lê Hoàng Anh', country: 'Việt Nam'),
-  _OnlineUser(name: 'Nguyễn Anh Tuấn', country: 'Việt Nam'),
-  _OnlineUser(name: 'Trần Minh Hà', country: 'Việt Nam'),
-  _OnlineUser(name: 'Lê Thanh Vy', country: 'Việt Nam'),
-  _OnlineUser(name: 'Đào Quốc Nam', country: 'Việt Nam'),
-  _OnlineUser(name: 'Phạm Thu Hương', country: 'Việt Nam'),
-  _OnlineUser(name: 'Võ Minh Khang', country: 'Việt Nam'),
-  _OnlineUser(name: 'Ngô Bảo Châu', country: 'Pháp'),
-  _OnlineUser(name: 'Mai Linh', country: 'Úc'),
-  _OnlineUser(name: 'Sophie Laurent', country: 'Pháp'),
-  _OnlineUser(name: 'Kenji Sato', country: 'Nhật Bản'),
-  _OnlineUser(name: 'Anna Müller', country: 'Đức'),
-  _OnlineUser(name: 'David Chen', country: 'Canada'),
-  _OnlineUser(name: 'Maria Santos', country: 'Tây Ban Nha'),
-  _OnlineUser(name: 'Park Ji-woo', country: 'Hàn Quốc'),
-  _OnlineUser(name: 'James Walker', country: 'Mỹ'),
-  _OnlineUser(name: 'Elena Rossi', country: 'Ý'),
-  _OnlineUser(name: 'Amina Hassan', country: 'Ai Cập'),
-  _OnlineUser(name: 'Lucas Pereira', country: 'Brazil'),
-  _OnlineUser(name: 'Chloe Tan', country: 'Singapore'),
-  _OnlineUser(name: 'Piotr Kowalski', country: 'Ba Lan'),
-  _OnlineUser(name: 'Hannah Berg', country: 'Thụy Điển'),
-  _OnlineUser(name: 'Nguyễn Thị Lan', country: 'Việt Nam'),
-];
-
-class _OnlineUsersSheet extends StatelessWidget {
-  const _OnlineUsersSheet();
-
-  @override
-  Widget build(BuildContext context) {
-    final height = MediaQuery.sizeOf(context).height * 0.72;
-    return SizedBox(
-      height: height,
-      child: Column(
-        children: [
-          const SizedBox(height: 10),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE4D4C4),
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Text(
-                    'Người dùng đang online',
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
-                  ),
-                ),
-                Text(
-                  '${_onlineUsers.length} người',
-                  style: const TextStyle(
-                    color: Color(0xFF8A6E5C),
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: Color(0xFFF0E6DC)),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
-              itemCount: _onlineUsers.length,
-              separatorBuilder: (_, _) => const Divider(
-                height: 1,
-                indent: 72,
-                color: Color(0xFFF4EBE3),
-              ),
-              itemBuilder: (context, index) {
-                final user = _onlineUsers[index];
-                return ListTile(
-                  onTap: () => _showCommunityMember(context, user),
-                  leading: CircleAvatar(
-                    backgroundColor: const Color(0xFFF4E4D4),
-                    foregroundColor: const Color(0xFFB55238),
-                    child: Text(
-                      user.name.substring(0, 1),
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                  title: Text(
-                    user.name,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  subtitle: Text(
-                    user.country,
-                    style: const TextStyle(color: Color(0xFF8A6E5C)),
-                  ),
-                  trailing: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Color(0xFF2E644D),
-                          shape: BoxShape.circle,
-                        ),
-                        child: SizedBox(width: 8, height: 8),
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'Online',
-                        style: TextStyle(
-                          color: Color(0xFF2E644D),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CommunityChatMessage {
-  const _CommunityChatMessage({
-    required this.author,
-    this.member,
-    required this.body,
-    required this.time,
-    required this.isMine,
-  });
-
-  final _OnlineUser? member;
-  final String author;
-  final String body;
-  final String time;
-  final bool isMine;
-}
-
-class _CommunityChatBubble extends StatelessWidget {
-  const _CommunityChatBubble({required this.message});
-
-  final _CommunityChatMessage message;
-
-  @override
-  Widget build(BuildContext context) {
-    final isMine = message.isMine;
-    final bubbleColor = isMine ? const Color(0xFFB55238) : Colors.white;
-    final textColor = isMine ? Colors.white : const Color(0xFF2C1A12);
-    final mutedColor = isMine
-        ? Colors.white.withValues(alpha: 0.72)
-        : const Color(0xFF8C7B70);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        mainAxisAlignment: isMine
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (!isMine) ...[
-            Semantics(
-              button: true,
-              label: 'Xem thông tin ${message.author}',
-              child: InkWell(
-                customBorder: const CircleBorder(),
-                onTap: () => _showCommunityMember(
-                  context,
-                  message.member ??
-                      _OnlineUser(
-                        name: message.author,
-                        country: 'Chưa cập nhật',
-                      ),
-                ),
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundColor: const Color(0xFFE9D8CA),
-                  child: Text(
-                    message.author.substring(0, 1),
-                    style: const TextStyle(
-                      color: Color(0xFF7A3F2C),
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Flexible(
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 292),
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 9),
-              decoration: BoxDecoration(
-                color: bubbleColor,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: const Radius.circular(18),
-                  bottomLeft: Radius.circular(isMine ? 18 : 5),
-                  bottomRight: Radius.circular(isMine ? 5 : 18),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!isMine) ...[
-                    Text(
-                      message.author,
-                      style: const TextStyle(
-                        color: Color(0xFF8B4A31),
-                        fontWeight: FontWeight.w900,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                  ],
-                  Text(
-                    message.body,
-                    style: TextStyle(
-                      color: textColor,
-                      height: 1.32,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    message.time,
-                    style: TextStyle(
-                      color: mutedColor,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -7863,7 +7148,7 @@ class _FinflowProfileTab extends StatelessWidget {
       builder: (dialogContext) => AlertDialog(
         title: const Text('Đăng xuất?'),
         content: const Text(
-          'Bạn vẫn có thể sử dụng ứng dụng với tư cách khách. Thông tin hồ sơ cục bộ sẽ được xóa khỏi thiết bị này.',
+          'Bạn vẫn có thể sử dụng ứng dụng với tư cách khách. Dữ liệu tài khoản vẫn được lưu trên máy chủ để đăng nhập lại.',
         ),
         actions: [
           TextButton(
@@ -7904,7 +7189,7 @@ class _FinflowProfileTab extends StatelessWidget {
         const SizedBox(height: 6),
         const _ProfileAvatarEditor(),
         const SizedBox(height: 10),
-        ValueListenableBuilder<_AppUserProfile?>(
+        ValueListenableBuilder<ApiUser?>(
           valueListenable: _currentUserProfile,
           builder: (context, profile, _) {
             return Column(
@@ -7919,7 +7204,12 @@ class _FinflowProfileTab extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  profile == null ? '' : '${profile.gmail} · ${profile.phone}',
+                  profile == null
+                      ? ''
+                      : [
+                          profile.email,
+                          profile.phone,
+                        ].where((part) => part.isNotEmpty).join(' · '),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Color(0xFF7D847F),
@@ -7949,7 +7239,7 @@ class _FinflowProfileTab extends StatelessWidget {
             );
           },
         ),
-        ValueListenableBuilder<_AppUserProfile?>(
+        ValueListenableBuilder<ApiUser?>(
           valueListenable: _currentUserProfile,
           builder: (context, profile, _) {
             if (profile == null) return const SizedBox.shrink();
@@ -7957,13 +7247,6 @@ class _FinflowProfileTab extends StatelessWidget {
               children: [
                 const SizedBox(height: 12),
                 const _ProfileStatStrip(),
-                const Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child: Text(
-                    'Chưa có dữ liệu thống kê cá nhân.',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ),
                 const SizedBox(height: 12),
                 _ProfileOptionCard(
                   icon: Icons.edit_note_rounded,
@@ -7972,13 +7255,16 @@ class _FinflowProfileTab extends StatelessWidget {
                   onTap: () => _editProfile(context, profile),
                 ),
                 _ProfileOptionCard(
+                  icon: Icons.menu_book_rounded,
+                  title: 'Nhật ký & mục đã lưu',
+                  subtitle: 'Nhật ký day huyệt, huyệt yêu thích, khóa học',
+                  onTap: () => _openSettingsPage(context, const _MyDataPage()),
+                ),
+                _ProfileOptionCard(
                   icon: Icons.health_and_safety_outlined,
                   title: 'Bảo mật và riêng tư',
-                  subtitle: 'Quản lý dữ liệu trên thiết bị',
-                  onTap: () => _openSettingsPage(
-                    context,
-                    _PrivacyPage(onLogout: onLogout),
-                  ),
+                  subtitle: 'Mật khẩu, chặn thành viên, xóa tài khoản',
+                  onTap: () => _openSettingsPage(context, const _PrivacyPage()),
                 ),
                 _ProfileOptionCard(
                   icon: Icons.medication_liquid_outlined,
@@ -8020,30 +7306,33 @@ class _ProfileStatStrip extends StatelessWidget {
         color: const Color(0xFF214A35),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: const Row(
-        children: [
-          Expanded(
-            child: _ProfileStatItem(
-              icon: Icons.self_improvement_rounded,
-              value: '—',
-              label: 'Buổi day huyệt',
+      child: ValueListenableBuilder<UserStats>(
+        valueListenable: _userStats,
+        builder: (context, stats, _) => Row(
+          children: [
+            Expanded(
+              child: _ProfileStatItem(
+                icon: Icons.self_improvement_rounded,
+                value: '${stats.journals}',
+                label: 'Nhật ký',
+              ),
             ),
-          ),
-          Expanded(
-            child: _ProfileStatItem(
-              icon: Icons.manage_search_rounded,
-              value: '—',
-              label: 'Lượt tra cứu',
+            Expanded(
+              child: _ProfileStatItem(
+                icon: Icons.bookmark_rounded,
+                value: '${stats.bookmarks}',
+                label: 'Mục đã lưu',
+              ),
             ),
-          ),
-          Expanded(
-            child: _ProfileStatItem(
-              icon: Icons.bookmark_rounded,
-              value: '—',
-              label: 'Phác đồ lưu',
+            Expanded(
+              child: _ProfileStatItem(
+                icon: Icons.school_rounded,
+                value: '${stats.courseRegistrations}',
+                label: 'Khóa học',
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Dien Chan App</string>
+	<string>DienChan</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -15,9 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>dien_chan_app</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Ứng dụng cần camera để chụp khuôn mặt và phủ điểm huyệt Diện Chẩn lên ảnh khách hàng.</string>
+	<string>DienChan</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -28,6 +26,17 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>Ứng dụng cần camera để chụp khuôn mặt và phủ điểm huyệt Diện Chẩn lên ảnh khách hàng.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Ứng dụng cần truy cập thư viện ảnh để bạn chọn ảnh đại diện.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

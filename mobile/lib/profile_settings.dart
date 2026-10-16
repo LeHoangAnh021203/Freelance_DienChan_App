@@ -9,42 +9,33 @@ class _ProfileSettings extends ChangeNotifier {
   String lastReminder = '';
   String draft = '';
 
-  Future<void> load(SharedPreferences preferences) async {
-    reminders = preferences.getBool('settings_reminders') ?? false;
-    minute = (preferences.getInt('settings_reminder_minute') ?? 420).clamp(
-      0,
-      1439,
-    );
-    lastReminder = preferences.getString('settings_last_reminder') ?? '';
-    draft = preferences.getString('settings_support_draft') ?? '';
+  void loadLocal(SharedPreferences preferences) {
+    final last = preferences.get('settings_last_reminder');
+    final savedDraft = preferences.get('settings_support_draft');
+    lastReminder = last is String ? last : '';
+    draft = savedDraft is String ? savedDraft : '';
+    notifyListeners();
+  }
+
+  void applyRemote(UserSettings settings) {
+    reminders = settings.reminders;
+    minute = settings.reminderMinute;
+    notifyListeners();
+  }
+
+  void reset() {
+    reminders = false;
+    minute = 7 * 60;
     notifyListeners();
   }
 
   Future<void> saveReminder(bool enabled, int time) async {
-    final preferences = await SharedPreferences.getInstance();
-    // One record prevents a partially saved schedule.
-    final saved = await preferences.setString(
-      'settings_schedule',
-      jsonEncode({'enabled': enabled, 'minute': time}),
+    final saved = await _api.saveSettings(
+      UserSettings(reminders: enabled, reminderMinute: time),
     );
-    if (!saved) throw StateError('Không lưu được lịch');
-    reminders = enabled;
-    minute = time;
-    notifyListeners();
-  }
-
-  Future<void> restoreSchedule() async {
-    final preferences = await SharedPreferences.getInstance();
-    final raw = preferences.getString('settings_schedule');
-    if (raw == null) return;
-    try {
-      final data = jsonDecode(raw) as Map<String, dynamic>;
-      reminders = data['enabled'] == true;
-      minute = (data['minute'] as int).clamp(0, 1439);
-      notifyListeners();
-    } catch (_) {
-      reminders = false;
-    }
+    applyRemote(saved);
+    final user = _currentUserProfile.value;
+    if (user != null) await _setSignedIn(user.copyWith(settings: saved));
   }
 }
 
@@ -83,28 +74,14 @@ void _openSettingsPage(BuildContext context, Widget page) {
   Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
 }
 
-Future<void> _editProfile(BuildContext context, _AppUserProfile profile) async {
+Future<void> _editProfile(BuildContext context, ApiUser profile) async {
   await Navigator.of(context).push<void>(
-    MaterialPageRoute(
-      builder: (pageContext) => _ProfileLoginPage(
-        initialProfile: profile,
-        onCompleted: (updated) async {
-          await _AuthGateState._saveProfile(updated);
-          if (pageContext.mounted) Navigator.pop(pageContext);
-          if (context.mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(const SnackBar(content: Text('Đã cập nhật hồ sơ.')));
-          }
-        },
-      ),
-    ),
+    MaterialPageRoute(builder: (_) => _ProfileFormPage(user: profile)),
   );
 }
 
 class _PrivacyPage extends StatefulWidget {
-  const _PrivacyPage({required this.onLogout});
-  final Future<void> Function() onLogout;
+  const _PrivacyPage();
   @override
   State<_PrivacyPage> createState() => _PrivacyPageState();
 }
@@ -112,52 +89,66 @@ class _PrivacyPage extends StatefulWidget {
 class _PrivacyPageState extends State<_PrivacyPage> {
   bool _busy = false;
 
-  Future<void> _clearData() async {
-    final confirmed = await showDialog<bool>(
+  Future<void> _changePassword(ApiUser user) async {
+    final result = await showDialog<({String current, String next})>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Xóa dữ liệu cá nhân trên thiết bị?'),
-        content: const Text(
-          'Hồ sơ, ảnh khuôn mặt, lịch nhắc và bản nháp hỗ trợ sẽ bị xóa. Bạn sẽ chuyển sang chế độ khách. Thao tác này không thể hoàn tác.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Xóa dữ liệu'),
-          ),
-        ],
+      builder: (_) => _PasswordDialog(
+        title: user.hasPassword ? 'Đổi mật khẩu' : 'Tạo mật khẩu',
+        currentLabel: user.hasPassword ? 'Mật khẩu hiện tại' : null,
+        askNewPassword: true,
+        confirmLabel: 'Lưu',
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (result == null || !mounted) return;
     setState(() => _busy = true);
     try {
-      final preferences = await SharedPreferences.getInstance();
-      for (final key in [
-        'settings_schedule',
-        'settings_last_reminder',
-        'settings_support_draft',
-        'settings_reminders',
-        'settings_reminder_minute',
-      ]) {
-        if (!await preferences.remove(key)) {
-          throw StateError('Không xóa được dữ liệu');
-        }
-      }
-      await _profileSettings.load(preferences);
-      await widget.onLogout();
-      if (mounted) Navigator.pop(context);
-    } catch (_) {
+      await _api.changePassword(
+        currentPassword: user.hasPassword ? result.current : null,
+        newPassword: result.next,
+      );
+      await _refreshStats();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Chưa xóa hết dữ liệu. Vui lòng thử lại.'),
+            content: Text(
+              'Đã lưu mật khẩu. Các thiết bị khác đã được đăng xuất.',
+            ),
           ),
         );
       }
+    } catch (error) {
+      if (mounted) _showApiError(context, error);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _deleteAccount(ApiUser user) async {
+    final result = await showDialog<({String current, String next})>(
+      context: context,
+      builder: (_) => _PasswordDialog(
+        title: 'Xóa tài khoản vĩnh viễn?',
+        message:
+            'Hồ sơ, ảnh đại diện, nhật ký, mục đã lưu, tin nhắn cộng đồng và đăng ký khóa học của bạn sẽ bị xóa khỏi máy chủ. Thao tác này không thể hoàn tác.',
+        currentLabel: user.hasPassword ? 'Nhập mật khẩu để xác nhận' : null,
+        confirmLabel: 'Xóa tài khoản',
+        danger: true,
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await _api.deleteAccount(
+        password: user.hasPassword ? result.current : null,
+      );
+      await _signOutLocally();
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Đã xóa tài khoản.')));
+      Navigator.pop(context);
+    } catch (error) {
+      if (mounted) _showApiError(context, error);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -166,61 +157,239 @@ class _PrivacyPageState extends State<_PrivacyPage> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Bảo mật và riêng tư')),
-    body: ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        const Card(
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'Hồ sơ được lưu trên trình duyệt hoặc thiết bị này. Phiên bản hiện tại chưa có tài khoản xác thực, mật khẩu, OTP hoặc đồng bộ dữ liệu giữa các thiết bị.',
+    body: ValueListenableBuilder<ApiUser?>(
+      valueListenable: _currentUserProfile,
+      builder: (context, user, _) => ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                user == null
+                    ? 'Bạn chưa đăng nhập.'
+                    : 'Tài khoản: ${user.email.isEmpty ? 'Apple ID (ẩn email)' : user.email}\n'
+                          'Đăng nhập bằng: ${[if (user.hasPassword) 'Email và mật khẩu', if (user.appleLinked) 'Apple'].join(', ')}\n\n'
+                          'Hồ sơ, nhật ký, mục đã lưu và cài đặt được lưu trên máy chủ theo tài khoản. Ảnh khuôn mặt dùng để đặt huyệt chỉ nằm trên thiết bị này.',
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        const Text(
-          'Dữ liệu khuôn mặt',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        const Text(
-          'Ảnh chụp được giữ trong phiên sử dụng để đặt huyệt. Bạn có thể xóa ảnh bất kỳ lúc nào.',
-        ),
-        ValueListenableBuilder<Uint8List?>(
-          valueListenable: userFacePhotoBytes,
-          builder: (context, photo, _) => OutlinedButton.icon(
-            onPressed: photo == null
-                ? null
-                : () {
-                    userFacePhotoBytes.value = null;
-                    userFaceAlignment.value = null;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Đã xóa ảnh khuôn mặt.')),
-                    );
-                  },
-            icon: const Icon(Icons.delete_outline),
-            label: Text(
-              photo == null ? 'Không có ảnh khuôn mặt' : 'Xóa ảnh khuôn mặt',
+          const SizedBox(height: 12),
+          const Text(
+            'Dữ liệu khuôn mặt',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const Text(
+            'Ảnh chụp được giữ trong phiên sử dụng để đặt huyệt và không gửi lên máy chủ.',
+          ),
+          ValueListenableBuilder<Uint8List?>(
+            valueListenable: userFacePhotoBytes,
+            builder: (context, photo, _) => OutlinedButton.icon(
+              onPressed: photo == null
+                  ? null
+                  : () {
+                      userFacePhotoBytes.value = null;
+                      userFaceAlignment.value = null;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Đã xóa ảnh khuôn mặt.')),
+                      );
+                    },
+              icon: const Icon(Icons.delete_outline),
+              label: Text(
+                photo == null ? 'Không có ảnh khuôn mặt' : 'Xóa ảnh khuôn mặt',
+              ),
             ),
           ),
-        ),
-        const Divider(height: 32),
-        const Text(
-          'Xóa dữ liệu cục bộ',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        const Text(
-          'Xóa hồ sơ, ảnh, lịch nhắc và bản nháp hỗ trợ khỏi thiết bị này.',
-        ),
-        const SizedBox(height: 12),
-        FilledButton.icon(
-          style: FilledButton.styleFrom(
-            backgroundColor: const Color(0xFFB91C1C),
+          if (user != null) ...[
+            const Divider(height: 32),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.password_rounded),
+              title: Text(user.hasPassword ? 'Đổi mật khẩu' : 'Tạo mật khẩu'),
+              subtitle: Text(
+                user.hasPassword
+                    ? 'Đăng xuất các thiết bị khác sau khi đổi'
+                    : 'Để đăng nhập bằng email ngoài Apple',
+              ),
+              enabled: !_busy && (user.hasPassword || user.email.isNotEmpty),
+              onTap: () => _changePassword(user),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.block_rounded),
+              title: const Text('Thành viên đã chặn'),
+              subtitle: const Text('Bỏ chặn để xem lại tin nhắn của họ'),
+              onTap: () =>
+                  _openSettingsPage(context, const _BlockedMembersPage()),
+            ),
+            const Divider(height: 32),
+            const Text(
+              'Xóa tài khoản',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            const Text(
+              'Xóa vĩnh viễn tài khoản và toàn bộ dữ liệu liên quan trên máy chủ.',
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFB91C1C),
+              ),
+              onPressed: _busy ? null : () => _deleteAccount(user),
+              icon: const Icon(Icons.delete_forever),
+              label: Text(_busy ? 'Đang xử lý...' : 'Xóa tài khoản'),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+class _PasswordDialog extends StatefulWidget {
+  const _PasswordDialog({
+    required this.title,
+    required this.confirmLabel,
+    this.message,
+    this.currentLabel,
+    this.askNewPassword = false,
+    this.danger = false,
+  });
+
+  final String title;
+  final String confirmLabel;
+  final String? message;
+
+  /// Label of the existing-password field; null hides it.
+  final String? currentLabel;
+  final bool askNewPassword;
+  final bool danger;
+
+  @override
+  State<_PasswordDialog> createState() => _PasswordDialogState();
+}
+
+class _PasswordDialogState extends State<_PasswordDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _currentController = TextEditingController();
+  final _newController = TextEditingController();
+
+  @override
+  void dispose() {
+    _currentController.dispose();
+    _newController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (widget.message != null) ...[
+                Text(widget.message!),
+                const SizedBox(height: 12),
+              ],
+              if (widget.currentLabel != null)
+                TextFormField(
+                  controller: _currentController,
+                  obscureText: true,
+                  autofillHints: const [AutofillHints.password],
+                  decoration: InputDecoration(labelText: widget.currentLabel),
+                  validator: (value) =>
+                      (value ?? '').isEmpty ? 'Vui lòng nhập mật khẩu' : null,
+                ),
+              if (widget.askNewPassword)
+                TextFormField(
+                  controller: _newController,
+                  obscureText: true,
+                  autofillHints: const [AutofillHints.newPassword],
+                  decoration: const InputDecoration(labelText: 'Mật khẩu mới'),
+                  validator: _validateNewPassword,
+                ),
+            ],
           ),
-          onPressed: _busy ? null : _clearData,
-          icon: const Icon(Icons.delete_forever),
-          label: Text(_busy ? 'Đang xóa...' : 'Xóa dữ liệu cá nhân'),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(
+          style: widget.danger
+              ? FilledButton.styleFrom(backgroundColor: const Color(0xFFB91C1C))
+              : null,
+          onPressed: () {
+            if (!(_formKey.currentState?.validate() ?? false)) return;
+            Navigator.pop(context, (
+              current: _currentController.text,
+              next: _newController.text,
+            ));
+          },
+          child: Text(widget.confirmLabel),
         ),
       ],
+    );
+  }
+}
+
+class _BlockedMembersPage extends StatefulWidget {
+  const _BlockedMembersPage();
+
+  @override
+  State<_BlockedMembersPage> createState() => _BlockedMembersPageState();
+}
+
+class _BlockedMembersPageState extends State<_BlockedMembersPage> {
+  late Future<List<CommunityMember>> _future = _api.blockedUsers();
+
+  Future<void> _unblock(CommunityMember member) async {
+    try {
+      await _api.unblockUser(member.id);
+      setState(() => _future = _api.blockedUsers());
+    } catch (error) {
+      if (mounted) _showApiError(context, error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Thành viên đã chặn')),
+    body: FutureBuilder<List<CommunityMember>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text(snapshot.error.toString()));
+        }
+        final members = snapshot.data!;
+        if (members.isEmpty) {
+          return const Center(child: Text('Bạn chưa chặn thành viên nào.'));
+        }
+        return ListView.builder(
+          itemCount: members.length,
+          itemBuilder: (context, index) {
+            final member = members[index];
+            return ListTile(
+              title: Text(member.fullName),
+              subtitle: Text(member.country),
+              trailing: TextButton(
+                onPressed: () => _unblock(member),
+                child: const Text('Bỏ chặn'),
+              ),
+            );
+          },
+        );
+      },
     ),
   );
 }
@@ -242,14 +411,8 @@ class _ReminderSettingsPageState extends State<_ReminderSettingsPage> {
           const SnackBar(content: Text('Đã lưu cài đặt nhắc giờ.')),
         );
       }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Không lưu được cài đặt. Vui lòng thử lại.'),
-          ),
-        );
-      }
+    } catch (error) {
+      if (mounted) _showApiError(context, error);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -269,7 +432,7 @@ class _ReminderSettingsPageState extends State<_ReminderSettingsPage> {
           padding: const EdgeInsets.all(16),
           children: [
             const Text(
-              'Nhắc giờ chỉ hiển thị khi ứng dụng đang mở và bạn đã đăng nhập. Không gửi thông báo khi đóng ứng dụng. Giờ nhắc theo giờ trên thiết bị.',
+              'Cài đặt được lưu theo tài khoản. Nhắc giờ hiển thị khi ứng dụng đang mở và bạn đã đăng nhập; chưa gửi thông báo khi đóng ứng dụng. Giờ nhắc theo giờ trên thiết bị.',
             ),
             const SizedBox(height: 16),
             SwitchListTile(
@@ -323,12 +486,45 @@ class _HelpPage extends StatefulWidget {
 
 class _HelpPageState extends State<_HelpPage> {
   final _controller = TextEditingController(text: _profileSettings.draft);
+  final _contactController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _busy = false;
+  bool _sending = false;
   @override
   void dispose() {
     _controller.dispose();
+    _contactController.dispose();
     super.dispose();
+  }
+
+  Future<void> _send() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _sending = true);
+    try {
+      await _api.sendSupportRequest(
+        _controller.text.trim(),
+        contact: _currentUserProfile.value == null
+            ? _contactController.text.trim()
+            : null,
+      );
+      _controller.clear();
+      _profileSettings.draft = '';
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.remove('settings_support_draft');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Đã gửi yêu cầu. Bộ phận hỗ trợ sẽ liên hệ lại với bạn.',
+            ),
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) _showApiError(context, error);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   Future<void> _saveDraft() async {
@@ -375,7 +571,18 @@ class _HelpPageState extends State<_HelpPage> {
             Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                'Bạn có thể xem trang chủ và tra cứu. Mở Hồ sơ hoặc Kết nối để đăng ký / đăng nhập khi cần.',
+                'Bạn có thể xem trang chủ, tra cứu và đăng ký khóa học. Đăng nhập để chat cộng đồng, lưu nhật ký và mục yêu thích.',
+              ),
+            ),
+          ],
+        ),
+        const ExpansionTile(
+          title: Text('Tôi quên mật khẩu thì làm sao?'),
+          children: [
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Text(
+                'Ở màn Đăng nhập, bấm "Quên mật khẩu?", nhập email để nhận mã 6 số rồi đặt mật khẩu mới.',
               ),
             ),
           ],
@@ -408,7 +615,7 @@ class _HelpPageState extends State<_HelpPage> {
             Padding(
               padding: EdgeInsets.all(16),
               child: Text(
-                'Dữ liệu được lưu trên thiết bị hiện tại. Xóa dữ liệu trình duyệt có thể làm mất hồ sơ. Chưa có đồng bộ sang thiết bị khác.',
+                'Hồ sơ, nhật ký, mục đã lưu và cài đặt được lưu trên máy chủ theo tài khoản, nên đăng nhập ở thiết bị khác vẫn thấy đủ. Bạn có thể xóa tài khoản trong Hồ sơ → Bảo mật và riêng tư.',
               ),
             ),
           ],
@@ -420,26 +627,49 @@ class _HelpPageState extends State<_HelpPage> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Chưa có kênh tiếp nhận hỗ trợ được cấu hình. Bạn có thể lưu bản nháp hoặc sao chép nội dung để gửi qua kênh liên hệ của mình.',
+          'Gửi yêu cầu trực tiếp tại đây, hoặc liên hệ $_hotlineDisplay, Facebook "Buiminhtam dien chan".',
         ),
         const SizedBox(height: 12),
         Form(
           key: _formKey,
-          child: TextFormField(
-            controller: _controller,
-            maxLines: 5,
-            maxLength: 2000,
-            decoration: const InputDecoration(
-              labelText: 'Mô tả vấn đề',
-              hintText: 'Bạn gặp vấn đề ở màn hình nào? Các bước thực hiện...',
-              border: OutlineInputBorder(),
-            ),
-            validator: (value) => (value?.trim().length ?? 0) < 10
-                ? 'Vui lòng mô tả ít nhất 10 ký tự'
-                : null,
+          child: Column(
+            children: [
+              if (_currentUserProfile.value == null) ...[
+                TextFormField(
+                  controller: _contactController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email hoặc số điện thoại liên hệ',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) => (value?.trim().length ?? 0) < 5
+                      ? 'Vui lòng nhập email hoặc số điện thoại'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+              ],
+              TextFormField(
+                controller: _controller,
+                maxLines: 5,
+                maxLength: 2000,
+                decoration: const InputDecoration(
+                  labelText: 'Mô tả vấn đề',
+                  hintText:
+                      'Bạn gặp vấn đề ở màn hình nào? Các bước thực hiện...',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (value) => (value?.trim().length ?? 0) < 10
+                    ? 'Vui lòng mô tả ít nhất 10 ký tự'
+                    : null,
+              ),
+            ],
           ),
         ),
-        FilledButton(
+        FilledButton.icon(
+          onPressed: _sending ? null : _send,
+          icon: const Icon(Icons.send_rounded),
+          label: Text(_sending ? 'Đang gửi...' : 'Gửi đến bộ phận hỗ trợ'),
+        ),
+        TextButton(
           onPressed: _busy ? null : _saveDraft,
           child: Text(_busy ? 'Đang lưu...' : 'Lưu bản nháp'),
         ),
@@ -470,31 +700,14 @@ class _HelpPageState extends State<_HelpPage> {
           icon: const Icon(Icons.copy),
           label: const Text('Sao chép nội dung'),
         ),
+        const SizedBox(height: 20),
+        const _LegalLinksCard(),
       ],
     ),
   );
 }
 
 final _profileAvatar = ValueNotifier<Uint8List?>(null);
-
-Future<void> _restoreAvatar(
-  SharedPreferences preferences,
-  bool signedIn,
-) async {
-  _profileAvatar.value = null;
-  final stored = preferences.getString('profile_avatar');
-  if (!signedIn || stored == null) return;
-  try {
-    final bytes = base64Decode(stored);
-    final codec = await instantiateImageCodec(
-      bytes,
-    ).timeout(const Duration(seconds: 5));
-    codec.dispose();
-    _profileAvatar.value = bytes;
-  } catch (_) {
-    // A damaged local image must not prevent opening the app.
-  }
-}
 
 class _ProfileAvatarEditor extends StatefulWidget {
   const _ProfileAvatarEditor();
@@ -537,7 +750,7 @@ class _ProfileAvatarEditorState extends State<_ProfileAvatarEditor> {
       ),
     );
     if (action == null || !mounted) return;
-    final owner = _currentUserProfile.value;
+    final ownerId = _currentUserProfile.value?.id;
     setState(() => _busy = true);
     try {
       Uint8List? bytes;
@@ -570,9 +783,7 @@ class _ProfileAvatarEditorState extends State<_ProfileAvatarEditor> {
           throw StateError('Ảnh không phù hợp');
         }
       }
-      if (!mounted || owner != _currentUserProfile.value || owner == null) {
-        return;
-      }
+      if (!mounted || ownerId == null) return;
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -607,14 +818,15 @@ class _ProfileAvatarEditorState extends State<_ProfileAvatarEditor> {
           ],
         ),
       );
-      if (confirmed != true || !mounted || owner != _currentUserProfile.value) {
+      if (confirmed != true ||
+          !mounted ||
+          ownerId != _currentUserProfile.value?.id) {
         return;
       }
-      final preferences = await SharedPreferences.getInstance();
-      final success = bytes == null
-          ? await preferences.remove('profile_avatar')
-          : await preferences.setString('profile_avatar', base64Encode(bytes));
-      if (!success) throw StateError('Không lưu được ảnh');
+      final updated = bytes == null
+          ? await _api.deleteAvatar()
+          : await _api.uploadAvatar(bytes);
+      await _setSignedIn(updated);
       _profileAvatar.value = bytes;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -627,6 +839,8 @@ class _ProfileAvatarEditorState extends State<_ProfileAvatarEditor> {
           ),
         );
       }
+    } on ApiException catch (error) {
+      if (mounted) _showApiError(context, error);
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -643,50 +857,58 @@ class _ProfileAvatarEditorState extends State<_ProfileAvatarEditor> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      ValueListenableBuilder<_AppUserProfile?>(
-        valueListenable: _currentUserProfile,
-        builder: (context, profile, _) => ValueListenableBuilder<Uint8List?>(
-          valueListenable: _profileAvatar,
-          builder: (context, bytes, _) => Column(
-            children: [
-              Semantics(
-                label: 'Ảnh đại diện',
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: profile == null || _busy ? null : _changeAvatar,
-                  child: CircleAvatar(
-                    radius: 40,
-                    backgroundColor: const Color(0xFF2B5E47),
-                    child: _busy
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : profile != null && bytes != null
-                        ? ClipOval(
-                            child: Image.memory(
-                              bytes,
-                              width: 80,
-                              height: 80,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : Icon(
-                            profile == null
-                                ? Icons.person_rounded
-                                : Icons.add_a_photo_outlined,
-                            size: profile == null ? 38 : 26,
+  Widget build(BuildContext context) => ValueListenableBuilder<ApiUser?>(
+    valueListenable: _currentUserProfile,
+    builder: (context, profile, _) => ValueListenableBuilder<Uint8List?>(
+      valueListenable: _profileAvatar,
+      builder: (context, bytes, _) => Column(
+        children: [
+          Semantics(
+            label: 'Ảnh đại diện',
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: profile == null || _busy ? null : _changeAvatar,
+              child: CircleAvatar(
+                radius: 40,
+                backgroundColor: const Color(0xFF2B5E47),
+                child: _busy
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : profile != null && bytes != null
+                    ? ClipOval(
+                        child: Image.memory(
+                          bytes,
+                          width: 80,
+                          height: 80,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => const Icon(
+                            Icons.person_rounded,
                             color: Colors.white,
                           ),
-                  ),
-                ),
+                        ),
+                      )
+                    : Icon(
+                        profile == null
+                            ? Icons.person_rounded
+                            : Icons.add_a_photo_outlined,
+                        size: profile == null ? 38 : 26,
+                        color: Colors.white,
+                      ),
               ),
-            ],
+            ),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }
 
-void _showCommunityMember(BuildContext context, _OnlineUser member) {
-  showDialog<void>(
+/// Returns true when the viewer blocked [member].
+Future<bool> _showCommunityMember(
+  BuildContext context,
+  CommunityMember member,
+) async {
+  final isMe = member.id == _currentUserProfile.value?.id;
+  final action = await showDialog<String>(
     context: context,
     builder: (context) => AlertDialog(
       title: const Text('Thông tin thành viên'),
@@ -699,7 +921,9 @@ void _showCommunityMember(BuildContext context, _OnlineUser member) {
               backgroundColor: const Color(0xFFE9D8CA),
               foregroundColor: const Color(0xFF7A3F2C),
               child: Text(
-                member.name.isEmpty ? '?' : member.name.characters.first,
+                member.fullName.isEmpty
+                    ? '?'
+                    : member.fullName.characters.first,
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -708,7 +932,7 @@ void _showCommunityMember(BuildContext context, _OnlineUser member) {
             ),
             const SizedBox(height: 16),
             Text(
-              member.name,
+              isMe ? '${member.fullName} (bạn)' : member.fullName,
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
@@ -717,7 +941,11 @@ void _showCommunityMember(BuildContext context, _OnlineUser member) {
               children: [
                 const Icon(Icons.public, size: 20),
                 const SizedBox(width: 10),
-                Expanded(child: Text('Quốc gia: ${member.country}')),
+                Expanded(
+                  child: Text(
+                    'Quốc gia: ${member.country.isEmpty ? 'Chưa cập nhật' : member.country}',
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -729,6 +957,14 @@ void _showCommunityMember(BuildContext context, _OnlineUser member) {
         ),
       ),
       actions: [
+        if (!isMe)
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'block'),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFB91C1C),
+            ),
+            child: const Text('Chặn'),
+          ),
         TextButton(
           onPressed: () => Navigator.pop(context),
           child: const Text('Đóng'),
@@ -736,4 +972,37 @@ void _showCommunityMember(BuildContext context, _OnlineUser member) {
       ],
     ),
   );
+  if (action != 'block' || !context.mounted) return false;
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Chặn ${member.fullName}?'),
+      content: const Text(
+        'Bạn và thành viên này sẽ không thấy tin nhắn của nhau trong cộng đồng. Có thể bỏ chặn trong Hồ sơ → Bảo mật và riêng tư.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Hủy'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Chặn'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return false;
+  try {
+    await _api.blockUser(member.id);
+    if (context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Đã chặn ${member.fullName}.')));
+    }
+    return true;
+  } catch (error) {
+    if (context.mounted) _showApiError(context, error);
+    return false;
+  }
 }

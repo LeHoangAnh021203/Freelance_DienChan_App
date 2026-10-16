@@ -1,3 +1,4 @@
+import 'package:dien_chan_app/bqc_digitized.dart';
 import 'package:dien_chan_app/face_3d_view.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -21,6 +22,76 @@ void main() {
       isInsideFaceIllustration(const Offset(432 / 864, 1050 / 1152)),
       isFalse,
     );
+  });
+
+  test('Behind-ear points such as 14 sit on both sides of the head', () async {
+    final mesh = FaceMesh.parse(
+      await rootBundle.loadString('assets/models/canonical_face_model.obj'),
+    );
+    final points = [
+      for (final projection in [
+        FacePointProjection.behindRightEar,
+        FacePointProjection.behindLeftEar,
+      ])
+        FacePoint('14', Offset.zero, Colors.red, projection: projection),
+    ];
+    final anchors = anchorFacePoints(mesh, points);
+    expect(anchors, hasLength(2));
+    final xs = anchors
+        .map(
+          (a) => List.generate(
+            3,
+            (axis) => List.generate(
+              3,
+              (i) => mesh.vertices[a.triangle[i]][axis] * a.weights[i],
+            ).reduce((b, c) => b + c),
+          )[0],
+        )
+        .toList();
+    expect(xs[0], greaterThan(0));
+    expect(xs[1], lessThan(0));
+    for (final a in anchors) {
+      final p = List.generate(
+        3,
+        (axis) => List.generate(
+          3,
+          (i) => mesh.vertices[a.triangle[i]][axis] * a.weights[i],
+        ).reduce((b, c) => b + c),
+      );
+      expect(p[0].abs(), inInclusiveRange(3.2, 6.6));
+      expect(p[2], greaterThan(1.8));
+      expect(a.weights.reduce((b, c) => b + c), closeTo(1, 1e-6));
+    }
+  });
+
+  test('Profile-only protocol points stay visible beside the face', () async {
+    final mesh = FaceMesh.parse(
+      await rootBundle.loadString('assets/models/canonical_face_model.obj'),
+    );
+    final points = [
+      for (final code in ['0', '62'])
+        for (final projection in [
+          FacePointProjection.rightProfile,
+          FacePointProjection.leftProfile,
+        ])
+          FacePoint(
+            code,
+            bqcSideSourceDots[code]!,
+            Colors.red,
+            projection: projection,
+          ),
+    ];
+    final anchors = anchorFacePoints(mesh, points);
+    expect(anchors.map((a) => a.point.code).toSet(), containsAll(['0', '62']));
+    for (final anchor in anchors) {
+      final uv = List.generate(
+        3,
+        (i) =>
+            faceDrawingUV(mesh.vertices[anchor.triangle[i]]) *
+            anchor.weights[i],
+      ).reduce((a, b) => a + b);
+      expect(shouldDrawFaceAnchor(anchor, uv), isTrue);
+    }
   });
 
   test(

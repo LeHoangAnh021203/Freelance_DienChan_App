@@ -1,4 +1,4 @@
-package com.example.dien_chan_app
+package com.dienchan.app
 
 import io.flutter.embedding.android.FlutterActivity
 

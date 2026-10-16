@@ -6,8 +6,8 @@ Monorepo cho ứng dụng Diện Chẩn, tách phần client, backend, tài li�
 
 - Mobile/client chính: Flutter trong `mobile/`
 - Legacy web prototype: `mobile/legacy-web/`
-- Backend: Node.js API không cần dependency ngoài
-- Data: JSON database local trong `backend/data/store.json`
+- Backend: Node.js (>= 20) với `pg`, `ws`, `jose`; deploy trên Railway
+- Data: PostgreSQL cho tài khoản, hồ sơ, chat, nhật ký, mục đã lưu, đăng ký khóa học; nội dung tra cứu vẫn đọc từ `backend/data/store.json`
 - Deploy/local tooling: script trong `infra/`
 
 ## Repository Structure
@@ -27,7 +27,13 @@ Monorepo cho ứng dụng Diện Chẩn, tách phần client, backend, tài li�
 - Đã nhập các nhóm dữ liệu từ `Dien_Chan_Data_PRD.docx`: đồ hình, điểm chạm, nguyên lý, dụng cụ, product spec, bookmark và hồ sơ theo dõi
 - Đã tạo khung tài liệu sản phẩm và kỹ thuật
 - Đã tách dữ liệu runtime sang `backend/data/store.json`
-- Chưa có đăng nhập thật và database production
+- Đăng ký/đăng nhập thật bằng email + mật khẩu (quên mật khẩu qua email) và Apple
+- Hồ sơ, ảnh đại diện, lịch nhắc, nhật ký, mục đã lưu, đăng ký khóa học lưu trên server theo tài khoản
+- Chat cộng đồng và danh sách online realtime qua WebSocket, có báo cáo/chặn/xóa tin nhắn
+- Thông báo trong app lấy từ server (chào mừng, xác nhận đăng ký khóa học, thông báo chung từ admin)
+- Gửi yêu cầu hỗ trợ lên server; trang công khai `/privacy`, `/terms`, `/support`, `/delete-account` cho hồ sơ store
+- Cảnh báo sức khỏe hiện ở lần mở app đầu tiên
+- Bundle ID / Application ID: `com.dienchan.app`, tên hiển thị `DienChan`; iOS chỉ hỗ trợ iPhone, tối thiểu iOS 15.5
 
 ## How To Use Source
 
@@ -39,8 +45,10 @@ Monorepo cho ứng dụng Diện Chẩn, tách phần client, backend, tài li�
 
 ### Backend
 
-- Entry point: `backend/server.js`
-- Local database: `backend/data/store.json`
+- Entry point: `backend/server.js`; route API trong `backend/src/api.js`
+- Schema Postgres tự tạo khi server khởi động (`backend/src/db.js`)
+- Realtime chat/online: `backend/src/realtime.js` tại `/api/v1/realtime`
+- Nội dung tra cứu: `backend/data/store.json`
 - API contract: `docs/api/`
 
 ## Run Local
@@ -69,19 +77,69 @@ Nhấn `r` để hot reload, `R` để hot restart, hoặc `q` để dừng Flut
 
 ### Backend/API local
 
+Cần PostgreSQL chạy local (ví dụ `brew install postgresql@16 && brew services start postgresql@16`).
 Mở terminal thứ hai tại thư mục gốc dự án (thư mục chứa `package.json`):
 
 ```bash
+createdb dien_chan
+npm install
 npm run dev
 ```
 
-Backend không cần cài dependency ngoài. Kiểm tra API tại:
+`npm run dev` tự đọc file `.env` nếu có. Kiểm tra API tại:
 
 ```text
 http://127.0.0.1:5173/api/v1/health
 ```
 
+App Flutter mặc định gọi `http://localhost:5173` (máy ảo Android: `http://10.0.2.2:5173`).
+Khi chạy local mà chưa có `RESEND_API_KEY`, mã quên mật khẩu được in ra terminal backend.
+Chạy test backend (cần database `dien_chan_test`): `createdb dien_chan_test && npm test`.
+
 Nhấn `Ctrl+C` để dừng backend.
+
+### Biến môi trường backend
+
+| Biến | Bắt buộc | Ý nghĩa |
+| --- | --- | --- |
+| `DATABASE_URL` | Có | Chuỗi kết nối Postgres (Railway: `${{Postgres.DATABASE_URL}}`) |
+| `RESEND_API_KEY`, `MAIL_FROM` | Có khi production | Gửi mã quên mật khẩu qua [Resend](https://resend.com) |
+| `ADMIN_EMAIL` | Nên có | Nhận email khi có đăng ký khóa học hoặc tin nhắn bị báo cáo |
+| `ADMIN_TOKEN` | Nên có | Header `X-Admin-Token` cho `GET /api/v1/admin/course-registrations` và `POST /api/v1/admin/notifications` |
+| `APPLE_CLIENT_IDS` | Khi dùng Apple | Bundle ID iOS (và Services ID nếu dùng Apple trên web), cách nhau dấu phẩy |
+| `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | Tùy chọn | Thu hồi quyền Apple khi người dùng xóa tài khoản |
+| `CORS_ORIGINS` | Tùy chọn | Domain web được gọi API, mặc định `*` |
+
+### Deploy backend lên Railway
+
+1. Tạo project trên Railway từ repo này, thêm dịch vụ **PostgreSQL**.
+2. Ở service backend, đặt các biến môi trường ở bảng trên. `railway.json` đã cấu hình lệnh chạy `npm start` và healthcheck `/api/v1/health`.
+3. Bật **Generate Domain** để có URL dạng `https://<app>.up.railway.app`.
+4. Build app trỏ tới server thật, ví dụ:
+
+```bash
+cd mobile
+flutter build web --release --dart-define=API_BASE_URL=https://<app>.up.railway.app
+flutter build appbundle --dart-define=API_BASE_URL=https://<app>.up.railway.app
+flutter build ipa --dart-define=API_BASE_URL=https://<app>.up.railway.app
+```
+
+Apple trên web cần thêm `--dart-define=APPLE_SERVICE_ID=...` và `--dart-define=APPLE_REDIRECT_URI=...`.
+
+Gửi thông báo cho mọi người dùng (thêm `"userId"` để gửi riêng một người; `kind`: `info`, `course`, `warning`, `community`):
+
+```bash
+curl -X POST https://<app>.up.railway.app/api/v1/admin/notifications \
+  -H "X-Admin-Token: $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"title":"Khai giảng khóa mới","body":"Đăng ký trong mục Khóa học.","kind":"course"}'
+```
+
+### Phát hành lên store
+
+- Nội dung đăng store, khai báo quyền riêng tư và ghi chú cho người duyệt: `docs/store/store-listing.md`.
+- Android ký bản release bằng `mobile/android/key.properties` + `mobile/android/app/upload-keystore.jks` (đã gitignore). **Sao lưu hai file này ở nơi an toàn**: mất chúng thì không cập nhật được app trên Google Play (trừ khi đã bật Play App Signing và xin reset upload key). Nếu thiếu `key.properties`, bản release tạm ký bằng debug key và Google Play sẽ từ chối.
+- iOS: mở `mobile/ios/Runner.xcworkspace`, kiểm tra Team, bật capability **Sign in with Apple** cho App ID `com.dienchan.app`, rồi `flutter build ipa` và tải lên bằng Transporter hoặc Xcode.
+- Đổi icon: thay `mobile/assets/branding/app_icon.png` (và `app_icon_foreground.png`), chạy `dart run flutter_launcher_icons` trong `mobile/`.
 
 ### Chạy trên điện thoại hoặc máy ảo
 
@@ -107,23 +165,21 @@ python3 -m http.server 5173
 
 ## Suggested Next Steps
 
-1. Tách dữ liệu mẫu trong `mobile/web/app.js` sang JSON hoặc API.
-2. Chọn backend framework và bootstrap trong `backend/`.
-3. Chuẩn hóa database schema cho huyệt, bệnh, triệu chứng, phác đồ và nhật ký.
-4. Kết nối client với API thật.
+1. Chuẩn hóa database schema cho huyệt, bệnh, triệu chứng, phác đồ (hiện vẫn đọc từ `store.json`).
+2. Thay dữ liệu chi tiết phác đồ mẫu bằng nội dung thật đã được chuyên môn duyệt.
+3. Thông báo đẩy (push notification) cho lịch nhắc và thông báo từ admin.
 
 ## Chức năng Hồ sơ
 
 - Khách chỉ thấy ảnh đại diện, tên Khách và nút đăng ký/đăng nhập.
-- Chỉnh sửa hồ sơ: cập nhật họ tên, điện thoại, Gmail, quốc gia; kiểm tra dữ liệu và lưu trên thiết bị.
-- Bảo mật và riêng tư: xóa ảnh khuôn mặt hoặc xác nhận xóa hồ sơ, lịch nhắc và bản nháp hỗ trợ trên thiết bị.
-- Thông báo: bật/tắt lịch nhắc hằng ngày, chọn giờ và thử thông báo. Lịch được lưu; nhắc chỉ hoạt động khi app đang mở và đã đăng nhập, theo giờ thiết bị, tối đa một lần mỗi ngày.
-- Trợ giúp: câu hỏi thường gặp, lưu bản nháp hỗ trợ và sao chép nội dung. Chưa cấu hình kênh gửi hỗ trợ.
-- Đăng xuất: xóa hồ sơ và ảnh trong phiên, chuyển về khách. Cài đặt nhắc giờ và bản nháp vẫn thuộc thiết bị; dùng Xóa dữ liệu cá nhân để xóa tất cả các mục này.
-- Thống kê hiển thị chưa có dữ liệu thay vì số mẫu.
-
-Hồ sơ hiện lưu cục bộ, chưa có xác thực máy chủ, mật khẩu/OTP/sinh trắc học,
-thông báo nền hoặc đồng bộ tài khoản giữa các thiết bị.
+- Đăng ký bằng họ tên, email, mật khẩu (tối thiểu 8 ký tự), điện thoại (không bắt buộc), quốc gia; hoặc Tiếp tục với Apple.
+- Quên mật khẩu: nhận mã 6 số qua email, hiệu lực 15 phút, tối đa 5 lần nhập.
+- Chỉnh sửa hồ sơ và ảnh đại diện: lưu trên server, đồng bộ giữa các thiết bị.
+- Bảo mật và riêng tư: đổi/tạo mật khẩu, danh sách thành viên đã chặn, xóa ảnh khuôn mặt, xóa tài khoản vĩnh viễn (xóa mọi dữ liệu trên server).
+- Thông báo: lịch nhắc hằng ngày lưu theo tài khoản; nhắc chỉ hoạt động khi app đang mở.
+- Nhật ký & mục đã lưu: ghi nhật ký day huyệt, lưu huyệt yêu thích, xem các khóa học đã đăng ký.
+- Trợ giúp: câu hỏi thường gặp, lưu bản nháp hỗ trợ trên thiết bị và sao chép nội dung.
+- Đăng xuất: hủy phiên trên server và xóa dữ liệu phiên trên thiết bị.
 
 ## Đồ hình 3D tham khảo
 

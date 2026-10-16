@@ -1,0 +1,12 @@
+mobile/
+dist/
+build/
+docs/
+tools/
+infra/
+node_modules/
+backend/test/
+*.ipynb
+*.png
+.env
+.env.*
