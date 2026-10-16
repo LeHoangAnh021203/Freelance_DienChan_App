@@ -671,7 +671,7 @@ class _ForgotPasswordPageState extends State<_ForgotPasswordPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Nếu email đã đăng ký, mã xác nhận 6 số đã được gửi. Hãy kiểm tra cả thư rác.',
+            'Đã gửi mã xác nhận 6 số. Hãy kiểm tra hộp thư và cả thư rác.',
           ),
         ),
       );

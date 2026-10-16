@@ -125,6 +125,10 @@ test("register, login, profile, password reset and deletion", async () => {
   assert.deepEqual(stats, { bookmarks: 1, journals: 1, courseRegistrations: 1 });
 
   resetCode = "";
+  assert.equal(
+    (await api("POST", "/auth/password/forgot", { body: { email: "chua-co@example.com" } })).status,
+    404,
+  );
   assert.equal((await api("POST", "/auth/password/forgot", { body: { email } })).status, 200);
   for (let i = 0; i < 20 && !resetCode; i += 1) await new Promise((resolve) => setTimeout(resolve, 50));
   assert.match(resetCode, /^\d{6}$/);

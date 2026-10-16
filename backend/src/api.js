@@ -271,21 +271,25 @@ route("POST", "/auth/password/forgot", async ({ req, body }) => {
   rateLimit(`forgot:${email}`, 3, HOUR, "Bạn đã yêu cầu nhiều lần. Vui lòng kiểm tra hộp thư hoặc thử lại sau 1 giờ.");
   if (!canSendMail()) throw new HttpError(503, "Máy chủ chưa cấu hình gửi email");
   const user = await one("SELECT id, email FROM users WHERE email = $1", [email]);
-  if (user) {
-    const code = newResetCode();
-    await transaction(async (db) => {
-      await db.query("UPDATE password_resets SET used_at = now() WHERE user_id = $1 AND used_at IS NULL", [user.id]);
-      await db.query(
-        `INSERT INTO password_resets (user_id, code_hash, expires_at) VALUES ($1, $2, now() + interval '15 minutes')`,
-        [user.id, sha256(`${user.id}:${code}`)],
-      );
-    });
-    await sendMail({
-      to: user.email,
-      subject: `Mã đặt lại mật khẩu ${config.appName}`,
-      text: `Mã xác nhận của bạn là: ${code}\n\nMã có hiệu lực trong 15 phút. Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.`,
-    });
+  if (!user) {
+    throw new HttpError(
+      404,
+      "Chưa có tài khoản đăng ký bằng email này. Vui lòng tạo tài khoản trước.",
+    );
   }
+  const code = newResetCode();
+  await transaction(async (db) => {
+    await db.query("UPDATE password_resets SET used_at = now() WHERE user_id = $1 AND used_at IS NULL", [user.id]);
+    await db.query(
+      `INSERT INTO password_resets (user_id, code_hash, expires_at) VALUES ($1, $2, now() + interval '15 minutes')`,
+      [user.id, sha256(`${user.id}:${code}`)],
+    );
+  });
+  await sendMail({
+    to: user.email,
+    subject: `Mã đặt lại mật khẩu ${config.appName}`,
+    text: `Mã xác nhận của bạn là: ${code}\n\nMã có hiệu lực trong 15 phút. Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.`,
+  });
   return { ok: true };
 });
 
