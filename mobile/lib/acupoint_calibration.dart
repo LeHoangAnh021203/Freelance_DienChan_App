@@ -145,3 +145,6 @@ Rect fittedFrontDiagram(Size size) {
   final fitted = applyBoxFit(BoxFit.contain, const Size(864, 1152), size);
   return Alignment.center.inscribe(fitted.destination, Offset.zero & size);
 }
+
+/// Same aspect box as the front plate — side artwork is also 864×1152.
+Rect fittedSideDiagram(Size size) => fittedFrontDiagram(size);

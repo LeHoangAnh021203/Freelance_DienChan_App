@@ -69,6 +69,53 @@ const _rows = <int, double>{
   12: 941,
 };
 
+/// Vertical BQC lines on the 864×1152 front diagram (normalized x).
+List<({String label, double x})> bqcFrontGridColumns() {
+  const order = ['A', 'B', 'C', 'D', 'E', 'G', 'H', 'K', 'L'];
+  return [
+    for (final label in order.reversed)
+      (label: label, x: (432 - _columns[label]!) / 864),
+    (label: 'O', x: 0.5),
+    for (final label in order)
+      (label: label, x: (432 + _columns[label]!) / 864),
+  ];
+}
+
+/// Horizontal BQC lines O–XII on the 864×1152 front diagram (normalized y).
+List<({String label, double y})> bqcFrontGridRows() {
+  const roman = [
+    'O',
+    'I',
+    'II',
+    'III',
+    'IV',
+    'V',
+    'VI',
+    'VII',
+    'VIII',
+    'IX',
+    'X',
+    'XI',
+    'XII',
+  ];
+  return [
+    for (final entry in _rows.entries)
+      (label: roman[entry.key], y: entry.value / 1152),
+  ];
+}
+
+/// Profile grid columns on the side diagram (normalized x), front → ear.
+List<({String label, double x})> bqcSideGridColumns() => const [
+  (label: 'L', x: 0.16),
+  (label: 'M', x: 0.28),
+  (label: 'N', x: 0.42),
+  (label: 'P', x: 0.58),
+  (label: 'Q', x: 0.72),
+];
+
+/// Profile grid rows share the front vertical bands (normalized y).
+List<({String label, double y})> bqcSideGridRows() => bqcFrontGridRows();
+
 const bqcGridReferences = <String, BqcGridReference>{
   '0': BqcGridReference('P-Q', '7', side: 'none'),
   '1': BqcGridReference('O', '7'),

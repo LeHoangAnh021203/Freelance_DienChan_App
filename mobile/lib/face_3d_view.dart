@@ -373,6 +373,7 @@ class _FaceMeshPainter extends CustomPainter {
 
     final anchors = anchorFacePoints(mesh, markers);
     final occupiedLabels = <Rect>[];
+    final pendingLabels = <({Offset spot, double depth, String code, bool active})>[];
     final codes = markers.map((p) => p.code).toSet().toList()
       ..sort((a, b) => (int.tryParse(a) ?? 0).compareTo(int.tryParse(b) ?? 0));
     final colors = {
@@ -485,55 +486,89 @@ class _FaceMeshPainter extends CustomPainter {
                     alpha: highlightCode == null ? 1 : 0.18,
                   ),
         );
-        if (showLabels || active) {
-          final label = TextPainter(
-            text: TextSpan(
-              text: 'Huyệt ${anchor.point.code}',
-              style: TextStyle(
-                fontSize: active ? 13 : 9,
-                color: active ? const Color(0xFF7A1D1D) : Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            textDirection: TextDirection.ltr,
-          )..layout();
-          final origin = Offset(
-            spot.dx + (active ? 16 : 6),
-            spot.dy - label.height / 2,
-          );
-          final bounds = Rect.fromLTWH(
-            origin.dx - 6,
-            origin.dy - 3,
-            label.width + 12,
-            label.height + 6,
-          );
-          // Keep the selected code readable; suppress crowded passive labels.
-          if (active || !occupiedLabels.any((rect) => rect.overlaps(bounds))) {
-            final rrect = RRect.fromRectAndRadius(
-              bounds,
-              const Radius.circular(8),
-            );
-            canvas.drawRRect(
-              rrect,
-              Paint()
-                ..color = active
-                    ? const Color(0xFFFFF6E0)
-                    : const Color(0xF2FFFFFF),
-            );
-            canvas.drawRRect(
-              rrect,
-              Paint()
-                ..color = active
-                    ? const Color(0xFFE8C56B)
-                    : const Color(0x66FFFFFF)
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = 1,
-            );
-            label.paint(canvas, origin);
-            occupiedLabels.add(bounds);
+        // Labels follow the "Số" toggle only; selected points still pulse.
+        if (showLabels) {
+          // Skip labels on the far side of the mesh so numbers don't stack
+          // through the head while rotating.
+          if (active || position[2] > -0.35) {
+            pendingLabels.add((
+              spot: spot,
+              depth: position[2],
+              code: anchor.point.code,
+              active: active,
+            ));
           }
         }
       }
+    }
+
+    // Front-most labels first; short codes + collision so 3D stays readable.
+    pendingLabels.sort((a, b) {
+      if (a.active != b.active) return a.active ? -1 : 1;
+      return b.depth.compareTo(a.depth);
+    });
+    for (final item in pendingLabels) {
+      final label = TextPainter(
+        text: TextSpan(
+          text: item.active ? 'Huyệt ${item.code}' : item.code,
+          style: TextStyle(
+            fontSize: item.active ? 13 : 8.5,
+            color: item.active ? const Color(0xFF7A1D1D) : const Color(0xFF1A2A32),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      final offsets = <Offset>[
+        Offset(item.spot.dx + (item.active ? 16 : 5), item.spot.dy - label.height / 2),
+        Offset(item.spot.dx - label.width - (item.active ? 16 : 5), item.spot.dy - label.height / 2),
+        Offset(item.spot.dx - label.width / 2, item.spot.dy - label.height - 10),
+        Offset(item.spot.dx - label.width / 2, item.spot.dy + 8),
+      ];
+      Offset? chosenOrigin;
+      Rect? chosenBounds;
+      for (final origin in offsets) {
+        final bounds = Rect.fromLTWH(
+          origin.dx - 4,
+          origin.dy - 2,
+          label.width + 8,
+          label.height + 4,
+        ).inflate(item.active ? 0 : 2);
+        if (item.active ||
+            !occupiedLabels.any((rect) => rect.overlaps(bounds))) {
+          chosenOrigin = origin;
+          chosenBounds = bounds;
+          break;
+        }
+      }
+      if (chosenOrigin == null || chosenBounds == null) continue;
+      final rrect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          chosenOrigin.dx - 4,
+          chosenOrigin.dy - 2,
+          label.width + 8,
+          label.height + 4,
+        ),
+        const Radius.circular(6),
+      );
+      canvas.drawRRect(
+        rrect,
+        Paint()
+          ..color = item.active
+              ? const Color(0xFFFFF6E0)
+              : const Color(0xE6FFFFFF),
+      );
+      canvas.drawRRect(
+        rrect,
+        Paint()
+          ..color = item.active
+              ? const Color(0xFFE8C56B)
+              : const Color(0x66FFFFFF)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1,
+      );
+      label.paint(canvas, chosenOrigin);
+      occupiedLabels.add(chosenBounds);
     }
     canvas.restore();
   }

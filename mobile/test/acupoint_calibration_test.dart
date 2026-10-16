@@ -1,4 +1,5 @@
 import 'package:dien_chan_app/acupoint_calibration.dart';
+import 'package:dien_chan_app/bqc_digitized.dart';
 import 'package:dien_chan_app/bqc_grid_reference.dart';
 import 'package:dien_chan_app/face_3d_view.dart';
 import 'package:flutter/material.dart';
@@ -60,7 +61,23 @@ void main() {
           (rect.center - Offset(size.width / 2, size.height / 2)).distance,
           lessThan(1e-8),
         );
+        expect(fittedSideDiagram(size), rect);
       }
     },
   );
+
+  test('BQC front grid keeps midline O and eyebrow row IV', () {
+    final columns = bqcFrontGridColumns();
+    expect(columns.where((c) => c.label == 'O').single.x, 0.5);
+    final rows = bqcFrontGridRows();
+    expect(rows.map((r) => r.label), containsAll(['O', 'IV', 'V', 'XII']));
+    final iv = rows.firstWhere((r) => r.label == 'IV').y;
+    // Huyệt 26 (giữa hai lông mày) sits on row IV in the digitized plate.
+    expect(bqcFrontPositions('26').single.dy, closeTo(iv, 0.02));
+  });
+
+  test('Side-only points such as 0 exist for the profile diagram', () {
+    expect(bqcSideSourceDots.containsKey('0'), isTrue);
+    expect(bqcFrontPositions('0'), isEmpty);
+  });
 }

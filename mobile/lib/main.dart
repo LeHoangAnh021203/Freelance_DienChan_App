@@ -3681,6 +3681,8 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
   bool _showPoints = false;
   bool _showGrid = true;
   bool _showAllLabeled = false;
+  /// Independent of [_showAllLabeled]: dots can show without number text.
+  bool _showLabels = false;
   int _diagramIndex = 0;
   String _query = '';
   String? _selectedCode;
@@ -3709,6 +3711,7 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
     } else if (widget.startWithAllPoints || userFacePhotoBytes.value != null) {
       _showPoints = true;
       _showAllLabeled = true;
+      _showLabels = false;
       _showGrid = true;
     }
   }
@@ -3719,7 +3722,11 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
       _query = code ?? '';
       _showPoints = true;
       _showAllLabeled = showAll;
-      if (showAll) _selectedCode = null;
+      if (showAll) {
+        _selectedCode = null;
+        // Keep numbers off until the user turns them on — avoids 3D clutter.
+        _showLabels = false;
+      }
     });
     _syncHighlightPulse();
   }
@@ -3762,6 +3769,7 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
       _selectedCode = null;
       _showPoints = true;
       _showAllLabeled = true;
+      _showLabels = false;
       _showGrid = true;
     });
     _syncHighlightPulse();
@@ -4079,7 +4087,8 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
                         embedded: true,
                         markers: _markersFor(selected),
                         highlightCode: selected?.code,
-                        showLabels: _showAllLabeled || selected != null,
+                        showLabels: _showLabels,
+                        showGrid: _showGrid,
                         onShow2D: () => setState(() => _show3D = false),
                       )
                     : ValueListenableBuilder<Uint8List?>(
@@ -4118,9 +4127,7 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
                                             showGrid: _showGrid,
                                             showPoints:
                                                 _showPoints || selected != null,
-                                            showLabels:
-                                                _showAllLabeled ||
-                                                selected != null,
+                                            showLabels: _showLabels,
                                             points: visiblePoints,
                                             highlightCode: selected?.code,
                                             pulse: _highlightPulse.value,
@@ -4212,13 +4219,13 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
               ),
             ),
           ),
-        if (!_show3D && (_showAllLabeled || _diagramIndex == 1))
+        if (!_show3D && _diagramIndex == 1)
           const Padding(
             padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Vị trí đọc từ sơ đồ chính diện; các huyệt trắc diện riêng chưa ánh xạ 3D.',
+                'Đồ hình trắc diện: chỉ hiện huyệt đã số hóa trên sơ đồ mặt nghiêng.',
                 style: TextStyle(
                   color: Color(0xFFA65B38),
                   fontWeight: FontWeight.w700,
@@ -4236,24 +4243,37 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
           ),
           child: Column(
             children: [
-              if (!_show3D)
-                Row(
-                  children: [
-                    _HuyetSquareButton(
-                      icon: Icons.keyboard_double_arrow_left_rounded,
-                      onTap: () => setState(() {
-                        _diagramIndex =
-                            (_diagramIndex - 1 + _diagrams.length) %
-                            _diagrams.length;
-                      }),
-                    ),
-                    const SizedBox(width: 6),
-                    _HuyetSquareButton(
-                      icon: Icons.keyboard_double_arrow_right_rounded,
-                      onTap: () => setState(() {
-                        _diagramIndex = (_diagramIndex + 1) % _diagrams.length;
-                      }),
-                    ),
+              Row(
+                children: [
+                  _HuyetSquareButton(
+                    label: '3D',
+                    selected: _show3D,
+                    onTap: () => setState(() => _show3D = true),
+                  ),
+                  const SizedBox(width: 6),
+                  _HuyetSquareButton(
+                    label: '2D',
+                    selected: !_show3D,
+                    onTap: () => setState(() => _show3D = false),
+                  ),
+                  const SizedBox(width: 6),
+                  _HuyetSquareButton(
+                    label: _showLabels ? 'Số ✓' : 'Số',
+                    selected: _showLabels,
+                    onTap: () => setState(() {
+                      _showLabels = !_showLabels;
+                      if (_showLabels) _showPoints = true;
+                    }),
+                  ),
+                  const SizedBox(width: 6),
+                  _HuyetSquareButton(
+                    icon: _showGrid
+                        ? Icons.grid_off_rounded
+                        : Icons.grid_on_rounded,
+                    selected: _showGrid,
+                    onTap: () => setState(() => _showGrid = !_showGrid),
+                  ),
+                  if (!_show3D) ...[
                     const SizedBox(width: 6),
                     _HuyetSquareButton(
                       label: _diagrams[_diagramIndex],
@@ -4270,15 +4290,10 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
                         _diagramIndex = _diagramIndex == 1 ? 0 : 1;
                       }),
                     ),
-                    const SizedBox(width: 6),
-                    _HuyetSquareButton(
-                      icon: _showGrid
-                          ? Icons.grid_off_rounded
-                          : Icons.grid_on_rounded,
-                      onTap: () => setState(() => _showGrid = !_showGrid),
-                    ),
-                  ],
-                ),
+                  ] else
+                    const Spacer(),
+                ],
+              ),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -4479,23 +4494,31 @@ class _AcupointFocusBanner extends StatelessWidget {
 }
 
 class _HuyetSquareButton extends StatelessWidget {
-  const _HuyetSquareButton({this.icon, this.label, required this.onTap});
+  const _HuyetSquareButton({
+    this.icon,
+    this.label,
+    required this.onTap,
+    this.selected = false,
+  });
 
   final IconData? icon;
   final String? label;
   final VoidCallback onTap;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
+    const accent = Color(0xFFA65B38);
     return SizedBox(
-      width: label == null ? 40 : 52,
+      width: label == null ? 40 : (label!.length > 2 ? 56 : 48),
       height: 40,
       child: OutlinedButton(
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
           padding: EdgeInsets.zero,
-          foregroundColor: const Color(0xFFA65B38),
-          side: const BorderSide(color: Color(0xFFA65B38)),
+          foregroundColor: selected ? Colors.white : accent,
+          backgroundColor: selected ? accent : Colors.transparent,
+          side: const BorderSide(color: accent),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: icon != null
@@ -4601,7 +4624,7 @@ class _FaceOverlayPainter extends CustomPainter {
             height: size.height * 0.57,
           )
         : useSideView
-        ? Offset.zero & size
+        ? fittedSideDiagram(size)
         : fittedFrontDiagram(size);
     final gridPaint = Paint()
       ..color = const Color(0xFF7DB7CB)
@@ -4609,16 +4632,20 @@ class _FaceOverlayPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     if (showGrid) {
-      for (var i = 1; i < 14; i++) {
-        final x = area.left + area.width * i / 14;
+      final columns = useSideView
+          ? bqcSideGridColumns()
+          : bqcFrontGridColumns();
+      final rows = useSideView ? bqcSideGridRows() : bqcFrontGridRows();
+      for (final column in columns) {
+        final x = area.left + area.width * column.x;
         canvas.drawLine(
           Offset(x, area.top + 10),
           Offset(x, area.bottom - 22),
           gridPaint,
         );
       }
-      for (var i = 1; i < 16; i++) {
-        final y = area.top + area.height * i / 16;
+      for (final row in rows) {
+        final y = area.top + area.height * row.y;
         canvas.drawLine(
           Offset(area.left + 14, y),
           Offset(area.right - 28, y),
@@ -4631,149 +4658,135 @@ class _FaceOverlayPainter extends CustomPainter {
         fontSize: 8.5,
         fontWeight: FontWeight.w700,
       );
-      const hLabels = [
-        'L',
-        'K',
-        'H',
-        'G',
-        'E',
-        'D',
-        'C',
-        'B',
-        'A',
-        '0',
-        'A',
-        'B',
-        'C',
-        'D',
-        'E',
-        'G',
-        'H',
-        'K',
-        'L',
-      ];
-      for (var i = 0; i < hLabels.length; i++) {
+      for (final column in columns) {
         final tp = TextPainter(
-          text: TextSpan(text: hLabels[i], style: axisStyle),
+          text: TextSpan(text: column.label, style: axisStyle),
           textDirection: TextDirection.ltr,
         )..layout();
-        final x =
-            area.left + area.width * (i + 0.5) / hLabels.length - tp.width / 2;
+        final x = area.left + area.width * column.x - tp.width / 2;
         tp.paint(canvas, Offset(x, area.bottom - 14));
       }
-      const vLabels = [
-        'O',
-        'I',
-        'II',
-        'III',
-        'IV',
-        'V',
-        'VI',
-        'VII',
-        'VIII',
-        'IX',
-        'X',
-        'XI',
-        'XII',
-      ];
-      for (var i = 0; i < vLabels.length; i++) {
+      for (final row in rows) {
         final tp = TextPainter(
-          text: TextSpan(text: vLabels[i], style: axisStyle),
+          text: TextSpan(text: row.label, style: axisStyle),
           textDirection: TextDirection.ltr,
         )..layout();
-        final y =
-            area.top +
-            area.height * (i + 0.7) / (vLabels.length + 1) -
-            tp.height / 2;
+        final y = area.top + area.height * row.y - tp.height / 2;
         tp.paint(canvas, Offset(area.right - 24, y));
       }
     }
 
     if (!showPoints) return;
 
-    final ringPaint = Paint()
-      ..color = const Color(0xFFFFFFFF)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
+    final occupiedLabels = <Rect>[];
+
+    void paintDot(Offset center, _Acupoint point) {
+      final isHighlight = highlightCode == point.code;
+      final color = isHighlight
+          ? const Color(0xFFE53E4E)
+          : _toneColor(
+              point.tone,
+            ).withValues(alpha: highlightCode == null ? 1 : 0.22);
+      if (isHighlight) {
+        final wave = (math.sin(pulse * math.pi * 2) + 1) / 2;
+        canvas.drawCircle(
+          center,
+          16 + wave * 10,
+          Paint()
+            ..color = const Color(
+              0xFFFF6D00,
+            ).withValues(alpha: 0.16 * (1 - wave)),
+        );
+        canvas.drawCircle(
+          center,
+          10 + wave * 6,
+          Paint()
+            ..color = const Color(
+              0xFFFF8F00,
+            ).withValues(alpha: 0.7 * (1 - wave))
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.4,
+        );
+      }
+      // Match 3D marker scale so dense charts stay readable.
+      final outer = isHighlight ? 7.0 : 3.5;
+      final inner = isHighlight ? 4.8 : 2.5;
+      canvas.drawCircle(center, outer, Paint()..color = Colors.white);
+      canvas.drawCircle(center, inner, Paint()..color = color);
+
+      // Labels follow the "Số" toggle only; selected points still pulse.
+      if (showLabels) {
+        final label = TextPainter(
+          text: TextSpan(
+            text: isHighlight ? 'Huyệt ${point.code}' : point.code,
+            style: TextStyle(
+              color: isHighlight
+                  ? const Color(0xFF7A1D1D)
+                  : const Color(0xFF1A2A32),
+              fontSize: isHighlight ? 12 : 8.5,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        final origin = Offset(
+          center.dx + (isHighlight ? 14 : 6),
+          center.dy - label.height / 2,
+        );
+        final hit = Rect.fromLTWH(
+          origin.dx - 4,
+          origin.dy - 2,
+          label.width + 8,
+          label.height + 4,
+        ).inflate(isHighlight ? 0 : 2);
+        if (!isHighlight && occupiedLabels.any((rect) => rect.overlaps(hit))) {
+          return;
+        }
+        if (isHighlight) {
+          final bounds = RRect.fromRectAndRadius(
+            Rect.fromLTWH(
+              origin.dx - 6,
+              origin.dy - 3,
+              label.width + 12,
+              label.height + 6,
+            ),
+            const Radius.circular(8),
+          );
+          canvas.drawRRect(bounds, Paint()..color = const Color(0xFFFFF6E0));
+          canvas.drawRRect(
+            bounds,
+            Paint()
+              ..color = const Color(0xFFE8C56B)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1,
+          );
+        }
+        label.paint(canvas, origin);
+        occupiedLabels.add(hit);
+      }
+    }
 
     for (final point in points) {
-      // Profile coordinates require their own calibrated diagram; do not infer them.
-      if (useSideView) continue;
-      for (final pos in point.frontPositions) {
-        final center = Offset(
-          area.left + pos.dx * area.width,
-          area.top + pos.dy * area.height,
+      if (useSideView) {
+        final side = bqcSideSourceDots[point.code];
+        if (side == null) continue;
+        paintDot(
+          Offset(
+            area.left + side.dx * area.width,
+            area.top + side.dy * area.height,
+          ),
+          point,
         );
-        final isHighlight = highlightCode == point.code;
-        final color = isHighlight
-            ? const Color(0xFFE53E4E)
-            : _toneColor(
-                point.tone,
-              ).withValues(alpha: highlightCode == null ? 1 : 0.22);
-        if (isHighlight) {
-          final wave = (math.sin(pulse * math.pi * 2) + 1) / 2;
-          canvas.drawCircle(
-            center,
-            16 + wave * 10,
-            Paint()
-              ..color = const Color(
-                0xFFFF6D00,
-              ).withValues(alpha: 0.16 * (1 - wave)),
-          );
-          canvas.drawCircle(
-            center,
-            10 + wave * 6,
-            Paint()
-              ..color = const Color(
-                0xFFFF8F00,
-              ).withValues(alpha: 0.7 * (1 - wave))
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = 2.4,
-          );
-        }
-        final radius = isHighlight ? 6.4 : (showLabels ? 3.2 : 3.8);
-        canvas.drawCircle(center, radius, Paint()..color = color);
-        canvas.drawCircle(center, radius, ringPaint);
-
-        if (showLabels || isHighlight) {
-          final label = TextPainter(
-            text: TextSpan(
-              text: isHighlight ? 'Huyệt ${point.code}' : point.code,
-              style: TextStyle(
-                color: isHighlight
-                    ? const Color(0xFF7A1D1D)
-                    : const Color(0xFF1A2A32),
-                fontSize: isHighlight ? 12 : (showLabels ? 8.5 : 10),
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            textDirection: TextDirection.ltr,
-          )..layout();
-          final origin = Offset(
-            center.dx + (isHighlight ? 14 : 6),
-            center.dy - label.height / 2,
-          );
-          if (isHighlight) {
-            final bounds = RRect.fromRectAndRadius(
-              Rect.fromLTWH(
-                origin.dx - 6,
-                origin.dy - 3,
-                label.width + 12,
-                label.height + 6,
-              ),
-              const Radius.circular(8),
-            );
-            canvas.drawRRect(bounds, Paint()..color = const Color(0xFFFFF6E0));
-            canvas.drawRRect(
-              bounds,
-              Paint()
-                ..color = const Color(0xFFE8C56B)
-                ..style = PaintingStyle.stroke
-                ..strokeWidth = 1,
-            );
-          }
-          label.paint(canvas, origin);
-        }
+        continue;
+      }
+      for (final pos in point.frontPositions) {
+        paintDot(
+          Offset(
+            area.left + pos.dx * area.width,
+            area.top + pos.dy * area.height,
+          ),
+          point,
+        );
       }
     }
   }
