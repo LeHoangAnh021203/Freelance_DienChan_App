@@ -1,6 +1,7 @@
 # Nội dung đăng App Store & Google Play
 
-Thay `<domain>` bằng domain Railway thật (ví dụ `dienchan-api.up.railway.app`) trước khi dán.
+Domain production (Railway): `freelancedienchanapp-production.up.railway.app`  
+Base URL: `https://freelancedienchanapp-production.up.railway.app`
 
 ## Thông tin chung
 
@@ -8,14 +9,15 @@ Thay `<domain>` bằng domain Railway thật (ví dụ `dienchan-api.up.railway.
 | --- | --- |
 | Tên hiển thị trên máy | DienChan |
 | Bundle ID / Application ID | `com.dienchan.app` |
+| Version hiện tại | `1.0.0` (build `1`) |
 | Tên trên store (≤ 30 ký tự) | DienChan - Sổ tay Diện Chẩn |
 | Phụ đề iOS (≤ 30 ký tự) | Tra huyệt, đồ hình, phác đồ |
 | Danh mục chính | Sức khỏe & Thể hình (Health & Fitness) |
 | Danh mục phụ (iOS) | Giáo dục (Education) |
-| Privacy Policy URL | `https://<domain>/privacy` |
-| Support URL (iOS) | `https://<domain>/support` |
-| Xóa tài khoản (Google Play) | `https://<domain>/delete-account` |
-| Điều khoản (tùy chọn) | `https://<domain>/terms` |
+| Privacy Policy URL | `https://freelancedienchanapp-production.up.railway.app/privacy` |
+| Support URL (iOS) | `https://freelancedienchanapp-production.up.railway.app/support` |
+| Xóa tài khoản (Google Play) | `https://freelancedienchanapp-production.up.railway.app/delete-account` |
+| Điều khoản (tùy chọn) | `https://freelancedienchanapp-production.up.railway.app/terms` |
 | Giá | Miễn phí, không mua trong ứng dụng, không quảng cáo |
 
 Không chọn danh mục "Y tế (Medical)": Apple duyệt danh mục này khắt khe hơn và yêu cầu chứng minh tư cách pháp lý của đơn vị cung cấp nội dung y khoa.
@@ -88,7 +90,7 @@ Không khai báo ảnh khuôn mặt: ảnh chỉ xử lý trên thiết bị, kh
 - Thu thập: Tên, Email, Số điện thoại (Thông tin cá nhân); Ảnh (ảnh đại diện); Tin nhắn trong ứng dụng; Nội dung khác do người dùng tạo; Thông tin sức khỏe (nhật ký).
 - Chia sẻ với bên thứ ba: **Không** (Railway, Resend là bên xử lý dữ liệu thay mặt ứng dụng).
 - Mã hóa khi truyền: **Có**.
-- Người dùng có thể yêu cầu xóa dữ liệu: **Có** – trong ứng dụng và tại `https://<domain>/delete-account`.
+- Người dùng có thể yêu cầu xóa dữ liệu: **Có** – trong ứng dụng và tại `https://freelancedienchanapp-production.up.railway.app/delete-account`.
 
 ## Ghi chú cho người duyệt (App Review / Review notes)
 
@@ -114,9 +116,37 @@ Password: <mật khẩu demo>
 ## Gửi thông báo cho người dùng (admin)
 
 ```bash
-curl -X POST https://<domain>/api/v1/admin/notifications \
+curl -X POST https://freelancedienchanapp-production.up.railway.app/api/v1/admin/notifications \
   -H "X-Admin-Token: $ADMIN_TOKEN" -H "Content-Type: application/json" \
   -d '{"title":"Khai giảng Khóa 50","body":"Đăng ký ngay trong mục Khóa học.","kind":"course"}'
 ```
 
 `kind` nhận `info`, `course`, `warning`, `community`. Thêm `"userId": "<uuid>"` để gửi riêng một người.
+
+## Checklist đội Dev trước khi đăng ký store
+
+### Đã chuẩn bị
+- [x] Bundle ID / Application ID: `com.dienchan.app`
+- [x] Keystore Android + `key.properties` (local, đã gitignore) — **sao lưu ngoài máy**
+- [x] URL pháp lý trên Railway (privacy / terms / support / delete-account)
+- [x] Copy listing, privacy labels, review notes (file này)
+- [x] Icon app (`mobile/assets/branding/`)
+
+### Cần hoàn tất trước khi upload
+- [x] Build AAB (đã ký upload key `CN=DienChan`): `docs/store/releases/DienChan-1.0.0-1-release.aab` (local, gitignore) hoặc `mobile/build/app/outputs/bundle/release/app-release.aab`
+- [ ] Build IPA — **chờ Apple Developer Program của chủ sở hữu** (team cá nhân hiện tại không hỗ trợ Sign in with Apple cho `com.dienchan.app`). Lệnh: `flutter build ipa --dart-define=API_BASE_URL=https://freelancedienchanapp-production.up.railway.app`
+- [x] Screenshot nháp (web/phone viewport) trong `docs/store/screenshots/` — nên chụp lại trên iPhone/Android thật trước khi nộp
+- [x] Feature graphic Google Play: `docs/store/screenshots/feature-graphic-1024x500.png` (+ `icon-512.png`, `icon-1024.png`)
+- [ ] Tạo tài khoản demo reviewer trên production + điền vào review notes
+- [ ] Smoke test bản release: đăng ký/đăng nhập → xóa tài khoản → cảnh báo sức khỏe → chat report/block
+
+### Chỉ làm được sau khi Thầy mở tài khoản
+- [ ] Upload AAB lên Play Console → closed testing (12 tester × 14 ngày nếu Cá nhân)
+- [ ] Upload IPA → TestFlight → nộp App Store
+
+
+## Ghi chú build đã chạy (21/10/2026)
+
+- Android AAB `1.0.0+1` trỏ API Railway production; certificate upload: `CN=DienChan, O=DienChan, C=VN`.
+- iOS archive chưa tạo được: Personal Team không hỗ trợ capability Sign in with Apple — cần tài khoản Apple Developer trả phí đứng tên chủ sở hữu, rồi mở lại Xcode Team và build IPA.
+- URL pháp lý production đã kiểm tra HTTP 200: `/privacy`, `/terms`, `/support`, `/delete-account`; `/api/v1/health` → `ok` + `mail=true`.

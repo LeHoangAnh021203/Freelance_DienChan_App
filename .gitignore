@@ -4,3 +4,8 @@ node_modules/
 build/
 .env
 .env.local
+
+# Store binaries (local only)
+docs/store/releases/
+*.aab
+*.ipa
