@@ -94,6 +94,7 @@ flutter:
     - assets/images/do_hinh_tren_dau.png
     - assets/images/do_hinh_tai_gay.png
     - assets/images/do_hinh_lung_tren_mat.png
+    - assets/images/do_hinh/
     - assets/images/intro_dien_chan_logo.jpg
     - assets/images/intro_bui_quoc_chau.jpg
     - assets/images/intro_bui_minh_tam.jpg

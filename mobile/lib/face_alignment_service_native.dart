@@ -11,10 +11,11 @@ import 'face_alignment_result.dart';
 Future<FaceAlignmentResult> analyzeFacePhoto(XFile file) async {
   final detector = FaceDetector(
     options: FaceDetectorOptions(
-      enableContours: true,
+      enableContours: false,
       enableLandmarks: true,
-      enableClassification: true,
-      performanceMode: FaceDetectorMode.accurate,
+      enableClassification: false,
+      // fast: phản hồi nhanh hơn trên mobile; vẫn đủ yaw/pitch/roll + box.
+      performanceMode: FaceDetectorMode.fast,
     ),
   );
   try {

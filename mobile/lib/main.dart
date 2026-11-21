@@ -473,6 +473,10 @@ class _FaceCameraPageState extends State<_FaceCameraPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Face capture is portrait-only on phones.
+    SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.portraitUp,
+    ]);
     _initializing = _initializeCamera();
   }
 
@@ -488,10 +492,14 @@ class _FaceCameraPageState extends State<_FaceCameraPage>
       );
       final controller = camera.CameraController(
         selected,
-        camera.ResolutionPreset.high,
+        // medium: nhanh hơn trên mobile, vẫn đủ nét cho face align.
+        camera.ResolutionPreset.medium,
         enableAudio: false,
+        imageFormatGroup: camera.ImageFormatGroup.jpeg,
       );
       await controller.initialize();
+      // Khóa sensor orientation → tránh preview bị dải ngang trên iOS/Android.
+      await controller.lockCaptureOrientation(DeviceOrientation.portraitUp);
       if (!mounted) {
         await controller.dispose();
         return;
@@ -510,12 +518,19 @@ class _FaceCameraPageState extends State<_FaceCameraPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final controller = _controller;
-    if (controller == null || !controller.value.isInitialized) return;
     if (state == AppLifecycleState.inactive) {
-      controller.dispose();
+      // iOS fires inactive for Control Center / app switcher — keep camera.
+      return;
+    }
+    if (state == AppLifecycleState.paused) {
+      final controller = _controller;
       _controller = null;
-    } else if (state == AppLifecycleState.resumed && _capturedBytes == null) {
+      controller?.dispose();
+      return;
+    }
+    if (state == AppLifecycleState.resumed &&
+        _controller == null &&
+        _capturedBytes == null) {
       setState(() => _initializing = _initializeCamera());
     }
   }
@@ -551,16 +566,70 @@ class _FaceCameraPageState extends State<_FaceCameraPage>
     }
   }
 
-  void _retake() => setState(() {
-    _capturedBytes = null;
-    _alignment = null;
-    _analyzing = false;
-  });
+  void _retake() {
+    setState(() {
+      _capturedBytes = null;
+      _alignment = null;
+      _analyzing = false;
+      if (_controller == null) {
+        _initializing = _initializeCamera();
+      }
+    });
+  }
+
+  /// Full-bleed preview: cover viewport (fixes thin letterboxed strip).
+  Widget _buildFullScreenPreview(camera.CameraController controller) {
+    final previewSize = controller.value.previewSize;
+    if (previewSize == null || !controller.value.isInitialized) {
+      return const ColoredBox(color: Colors.black);
+    }
+    // Sensor buffer is landscape; portrait UI uses swapped sides.
+    final previewW = previewSize.height;
+    final previewH = previewSize.width;
+    return SizedBox.expand(
+      child: FittedBox(
+        fit: BoxFit.cover,
+        clipBehavior: Clip.hardEdge,
+        child: SizedBox(
+          width: previewW,
+          height: previewH,
+          child: _buildPreviewSurface(controller),
+        ),
+      ),
+    );
+  }
+
+  /// Same surface as [camera.CameraPreview], without its AspectRatio box.
+  Widget _buildPreviewSurface(camera.CameraController controller) {
+    final preview = controller.buildPreview();
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return preview;
+    }
+    final orientation =
+        controller.value.lockedCaptureOrientation ??
+        controller.value.deviceOrientation;
+    const turns = <DeviceOrientation, int>{
+      DeviceOrientation.portraitUp: 0,
+      DeviceOrientation.landscapeRight: 1,
+      DeviceOrientation.portraitDown: 2,
+      DeviceOrientation.landscapeLeft: 3,
+    };
+    return RotatedBox(
+      quarterTurns: turns[orientation] ?? 0,
+      child: preview,
+    );
+  }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
+    SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
     super.dispose();
   }
 
@@ -568,39 +637,44 @@ class _FaceCameraPageState extends State<_FaceCameraPage>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (_capturedBytes != null)
-              Image.memory(_capturedBytes!, fit: BoxFit.cover)
-            else
-              FutureBuilder<void>(
-                future: _initializing,
-                builder: (context, snapshot) {
-                  final controller = _controller;
-                  if (_error != null) {
-                    return _CameraErrorState(
-                      message: _error!,
-                      onRetry: () =>
-                          setState(() => _initializing = _initializeCamera()),
-                    );
-                  }
-                  if (controller == null || !controller.value.isInitialized) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    );
-                  }
-                  return Center(child: camera.CameraPreview(controller));
-                },
-              ),
-            IgnorePointer(
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (_capturedBytes != null)
+            Image.memory(_capturedBytes!, fit: BoxFit.cover)
+          else
+            FutureBuilder<void>(
+              future: _initializing,
+              builder: (context, snapshot) {
+                final controller = _controller;
+                if (_error != null) {
+                  return _CameraErrorState(
+                    message: _error!,
+                    onRetry: () =>
+                        setState(() => _initializing = _initializeCamera()),
+                  );
+                }
+                if (controller == null || !controller.value.isInitialized) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
+                }
+                return _buildFullScreenPreview(controller);
+              },
+            ),
+          Positioned.fill(
+            child: IgnorePointer(
               child: CustomPaint(
                 painter: _FaceGuidePainter(
                   status: _capturedBytes == null ? null : _alignment?.isValid,
                 ),
               ),
             ),
+          ),
+          SafeArea(
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
             Positioned(
               top: 8,
               left: 8,
@@ -777,8 +851,10 @@ class _FaceCameraPageState extends State<_FaceCameraPage>
                       ],
                     ),
             ),
-          ],
-        ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -4936,25 +5012,99 @@ class _ProtocolDetailPage extends StatelessWidget {
   }
 }
 
+class _ReflexMapItem {
+  const _ReflexMapItem({
+    required this.title,
+    required this.asset,
+    required this.paragraphs,
+  });
+
+  final String title;
+  final String asset;
+  final List<String> paragraphs;
+}
+
 class _ReflexMapListPageBody extends StatelessWidget {
   const _ReflexMapListPageBody();
 
+  static const _updating = ['Thông tin đang được cập nhật.'];
+
   static const _maps = [
-    (
+    _ReflexMapItem(
       title: 'Phản Chiếu Ngoại Vi Trắc Diện',
-      asset: 'assets/images/do_hinh_trac_dien.png',
+      asset: 'assets/images/do_hinh/ngoai_vi_trac_dien.jpg',
+      paragraphs: _updating,
     ),
-    (
-      title: 'Phản Chiếu Ngoại Vi Trên Đầu (Z)',
-      asset: 'assets/images/do_hinh_tren_dau.png',
+    _ReflexMapItem(
+      title: 'Phản Chiếu Ngoại Vi Trên Đầu',
+      asset: 'assets/images/do_hinh/ngoai_vi_tren_dau.jpg',
+      paragraphs: _updating,
     ),
-    (
-      title: 'Phản Chiếu Tai và Gáy',
-      asset: 'assets/images/do_hinh_tai_gay.png',
+    _ReflexMapItem(
+      title: 'Phản Chiếu Ngoại Vi Trên Đầu (2)',
+      asset: 'assets/images/do_hinh/ngoai_vi_tren_dau_2.jpg',
+      paragraphs: _updating,
     ),
-    (
-      title: 'Phản Chiếu Lưng Trên Mặt',
-      asset: 'assets/images/do_hinh_lung_tren_mat.png',
+    _ReflexMapItem(
+      title: 'Ngoại Vi Cơ Thể (Ngoại Vi Âm Dương)',
+      asset: 'assets/images/do_hinh/ngoai_vi_am_duong.jpg',
+      paragraphs: _updating,
+    ),
+    _ReflexMapItem(
+      title: 'Phản Chiếu Ngoại Vi Cơ Thể Trên Vỏ Não',
+      asset: 'assets/images/do_hinh/ngoai_vi_vo_nao.jpg',
+      paragraphs: _updating,
+    ),
+    _ReflexMapItem(
+      title: 'Phản Chiếu Não Bộ',
+      asset: 'assets/images/do_hinh/nao_bo.jpg',
+      paragraphs: _updating,
+    ),
+    _ReflexMapItem(
+      title: 'Phản Chiếu Nội Tạng Trên Mặt',
+      asset: 'assets/images/do_hinh/noi_tang_tren_mat.jpg',
+      paragraphs: [
+        // Chú thích lấy từ chú giải trên ảnh nguồn
+        'a. Tim · b. Phổi · c. Gan · d. Bao tử · e. Lá lách · f. Mật',
+        'g. Thận · h. Ruột già · i. Ruột non · j. Bàng quang · k. Niệu đạo · l. Tụy',
+      ],
+    ),
+    _ReflexMapItem(
+      title: 'Phản Chiếu Nội Tạng Trên Trán',
+      asset: 'assets/images/do_hinh/noi_tang_tren_tran.jpg',
+      paragraphs: [
+        // Chú thích lấy từ chú giải trên ảnh nguồn
+        'a. Tim · b. Phổi · c. Gan · d. Bao tử · e. Lá lách',
+        'f. Mật · g. Thận · h. Ruột già · i. Ruột non · j. Bàng quang · k. Niệu đạo',
+      ],
+    ),
+    _ReflexMapItem(
+      title: 'Phản Chiếu Sinh Dục Nữ',
+      asset: 'assets/images/do_hinh/sinh_duc_nu.jpg',
+      paragraphs: _updating,
+    ),
+    _ReflexMapItem(
+      title: 'Phản Chiếu Tim Và Não',
+      asset: 'assets/images/do_hinh/tim_va_nao.jpg',
+      paragraphs: _updating,
+    ),
+    _ReflexMapItem(
+      title: 'Người Suy Tư (Rodin)',
+      asset: 'assets/images/do_hinh/nguoi_suy_tu_rodin.jpg',
+      paragraphs: _updating,
+    ),
+    _ReflexMapItem(
+      title: 'Phản Chiếu Thái Cực Đồ Trên Mặt',
+      asset: 'assets/images/do_hinh/thai_cuc_do.jpg',
+      paragraphs: [
+        // Nội dung lấy từ ảnh nguồn
+        'Đồ hình này tổng hợp toàn bộ cơ thể.',
+        'Trong con người: Âm (trái) – Dương (phải)',
+        'Trong đồ hình: Xanh (âm) – Đỏ (dương)',
+        'Người nóng tác động bên âm (làm cho người dịu xuống)',
+        'Người lạnh tác động bên dương (làm cho người nóng)',
+        'Để quân bình thì cả 2 bên Âm + Dương',
+      ],
     ),
   ];
 
@@ -4968,8 +5118,7 @@ class _ReflexMapListPageBody extends StatelessWidget {
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) =>
-                      _ReflexMapViewerPage(title: map.title, asset: map.asset),
+                  builder: (_) => _ReflexMapViewerPage(map: map),
                 ),
               ),
               child: Container(
@@ -5006,7 +5155,7 @@ class _ReflexMapListPageBody extends StatelessWidget {
                       color: const Color(0xFF71BFB5),
                       child: Text(
                         map.title,
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.white,
