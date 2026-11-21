@@ -1,8 +1,8 @@
 # Nội dung đăng App Store & Google Play
 
-Domain production (tạm — Render free): `https://<service>.onrender.com`  
-(Railway cũ `freelancedienchanapp-production.up.railway.app` đã offline / trial hết — đổi sang Render rồi cập nhật lại URL trong bảng dưới + Play Console.)  
-Base URL: thay bằng domain Render sau khi deploy (xem README → Deploy backend tạm trên Render).
+Legal pages (GitHub Pages — dùng cho Play Console ngay):  
+`https://appdienchan.github.io/App_DienChan/`  
+API/backend (Railway offline; Render cần thẻ): deploy sau khi có host.
 
 ## Thông tin chung
 
@@ -16,10 +16,10 @@ Base URL: thay bằng domain Render sau khi deploy (xem README → Deploy backen
 | Phụ đề iOS (≤ 30 ký tự) | Tra huyệt, đồ hình, phác đồ |
 | Danh mục chính | Sức khỏe & Thể hình (Health & Fitness) |
 | Danh mục phụ (iOS) | Giáo dục (Education) |
-| Privacy Policy URL | `https://freelancedienchanapp-production.up.railway.app/privacy` |
-| Support URL (iOS) | `https://freelancedienchanapp-production.up.railway.app/support` |
-| Xóa tài khoản (Google Play) | `https://freelancedienchanapp-production.up.railway.app/delete-account` |
-| Điều khoản (tùy chọn) | `https://freelancedienchanapp-production.up.railway.app/terms` |
+| Privacy Policy URL | `https://appdienchan.github.io/App_DienChan/privacy/` |
+| Support URL (iOS) | `https://appdienchan.github.io/App_DienChan/support/` |
+| Xóa tài khoản (Google Play) | `https://appdienchan.github.io/App_DienChan/delete-account/` |
+| Điều khoản (tùy chọn) | `https://appdienchan.github.io/App_DienChan/terms/` |
 | Giá | Miễn phí, không mua trong ứng dụng, không quảng cáo |
 
 Không chọn danh mục "Y tế (Medical)": Apple duyệt danh mục này khắt khe hơn và yêu cầu chứng minh tư cách pháp lý của đơn vị cung cấp nội dung y khoa.
