@@ -110,6 +110,30 @@ Nhấn `Ctrl+C` để dừng backend.
 | `APPLE_TEAM_ID`, `APPLE_KEY_ID`, `APPLE_PRIVATE_KEY` | Tùy chọn | Thu hồi quyền Apple khi người dùng xóa tài khoản |
 | `CORS_ORIGINS` | Tùy chọn | Domain web được gọi API, mặc định `*` |
 
+### Deploy backend tạm trên Render (free — dùng cho Google Play)
+
+Railway trial hết hạn có thể dùng Render free + Postgres free (Neon) để mở `/privacy` và API khi duyệt Play Console.
+
+1. Tạo DB free tại [Neon](https://neon.tech) → copy connection string (`postgresql://...?sslmode=require`).
+2. Push repo lên GitHub (cần có `render.yaml` ở root).
+3. Vào [Render](https://render.com) → **New** → **Blueprint** → chọn repo → Apply  
+   (hoặc **New Web Service** → repo → Build `npm install`, Start `npm start`, Instance **Free**).
+4. Environment:
+   - `DATABASE_URL` = chuỗi Neon
+   - `PGSSL=true`
+   - `NODE_ENV=production`
+   - `RESEND_API_KEY`, `MAIL_FROM`, `ADMIN_EMAIL`, `ADMIN_TOKEN` (như bảng trên)
+5. Sau deploy: mở `https://<service>.onrender.com/privacy` và `/api/v1/health` (lần đầu có thể chờ 30–60s vì free sleep).
+6. Dán URL privacy vào Play Console. Rebuild AAB:
+
+```bash
+cd mobile
+flutter build appbundle --release \
+  --dart-define=API_BASE_URL=https://<service>.onrender.com
+```
+
+Lưu ý: free tier **ngủ ~15 phút** không traffic → cold start chậm; đủ closed testing, không dùng lâu dài. Sau này chuyển Railway Pro / account riêng thì chỉ đổi domain + rebuild.
+
 ### Deploy backend lên Railway
 
 1. Tạo project trên Railway từ repo này, thêm dịch vụ **PostgreSQL**.

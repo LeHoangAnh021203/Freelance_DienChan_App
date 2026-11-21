@@ -30,7 +30,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.dienchan.app"
+        // Must match the app created in Google Play Console.
+        applicationId = "com.minhtambui.dienchan"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

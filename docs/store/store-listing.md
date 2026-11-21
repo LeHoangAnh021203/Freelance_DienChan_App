@@ -1,14 +1,16 @@
 # Nội dung đăng App Store & Google Play
 
-Domain production (Railway): `freelancedienchanapp-production.up.railway.app`  
-Base URL: `https://freelancedienchanapp-production.up.railway.app`
+Domain production (tạm — Render free): `https://<service>.onrender.com`  
+(Railway cũ `freelancedienchanapp-production.up.railway.app` đã offline / trial hết — đổi sang Render rồi cập nhật lại URL trong bảng dưới + Play Console.)  
+Base URL: thay bằng domain Render sau khi deploy (xem README → Deploy backend tạm trên Render).
 
 ## Thông tin chung
 
 | Mục | Giá trị |
 | --- | --- |
 | Tên hiển thị trên máy | DienChan |
-| Bundle ID / Application ID | `com.dienchan.app` |
+| Bundle ID iOS | `com.dienchan.app` |
+| Application ID Android (Play Console) | `com.minhtambui.dienchan` |
 | Version hiện tại | `1.0.0` (build `1`) |
 | Tên trên store (≤ 30 ký tự) | DienChan - Sổ tay Diện Chẩn |
 | Phụ đề iOS (≤ 30 ký tự) | Tra huyệt, đồ hình, phác đồ |

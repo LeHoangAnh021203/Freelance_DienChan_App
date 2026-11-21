@@ -1,0 +1,31 @@
+# Temporary free hosting for Google Play listing / closed testing.
+# Render free Web Service sleeps after ~15 min idle (cold start ~30–60s).
+# Postgres: use free Neon (or Supabase) — paste connection string as DATABASE_URL.
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: dienchan-api
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PGSSL
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: APPLE_CLIENT_IDS
+        sync: false
