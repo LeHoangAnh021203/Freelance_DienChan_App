@@ -78,6 +78,23 @@ void main() {
 
   test('Side-only points such as 0 exist for the profile diagram', () {
     expect(bqcSideSourceDots.containsKey('0'), isTrue);
+    expect(bqcSidePositions('0'), isNotEmpty);
     expect(bqcFrontPositions('0'), isEmpty);
+    // User-ref diagram: huyệt 0 near ear, not the nose.
+    final side0 = bqcSidePositions('0').single;
+    expect(side0.dx, greaterThan(0.45));
+    // SAU TAI inset points digitized from the user reference screenshot.
+    for (final code in ['14', '15', '54', '55', '56', '200', '204']) {
+      expect(bqcDigitizedSide.containsKey(code), isTrue, reason: code);
+      expect(bqcSidePositions(code), isNotEmpty, reason: code);
+    }
+    final rows = bqcSideGridRows();
+    expect(rows.first.label, 'O');
+    expect(rows.last.label, 'XII');
+    final cols = bqcSideGridColumns();
+    expect(cols.map((c) => c.label).toList(), ['L', 'M', 'N', 'P', 'Q']);
+    for (var i = 1; i < cols.length; i++) {
+      expect(cols[i].x, greaterThan(cols[i - 1].x));
+    }
   });
 }

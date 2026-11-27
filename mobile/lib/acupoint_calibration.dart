@@ -71,7 +71,7 @@ String? acupointViewHint(String code) {
   if (isBehindEarAcupoint(code)) {
     return 'Mặt 3D đã xoay để nhìn vùng tai.';
   }
-  if (bqcFrontPositions(code).isEmpty && bqcSideSourceDots.containsKey(code)) {
+  if (bqcFrontPositions(code).isEmpty && bqcSidePositions(code).isNotEmpty) {
     return 'Mặt 3D đã xoay sang mặt bên (trắc diện).';
   }
   return null;

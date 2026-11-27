@@ -10,10 +10,10 @@ rows = list(csv.DictReader((root/'docs/references/bqc-front-dots.csv').open()))
 assert len({r['code'] for r in rows}) == len(rows)
 source_rows = [380,457,534,616,694,770,845,936,1014,1115,1210,1313,1414]
 edge_rows = [353,431,513,599,682,755,834,933,1008,1115,1213,1318,1420]
-target_rows = [250,300,350,402,445,500,550,635,695,745,810,885,941]
+target_rows = [250.0000, 298.7457, 349.9902, 401.9882, 444.9826, 499.9788, 549.9842, 635.0033, 695.0037, 745.0000, 785.3637, 884.9960, 941.0000]
 source_columns_top = [576,597,618,644,665,709,750,792,833,888,924]
 source_columns_bottom = [590,607,637,664,690,736,782,827,877,931,970]
-target_columns = [0,14,30,48,64,100,133,170,205,225,270]
+target_columns = [0.0000, 13.3070, 29.3962, 48.7417, 64.8124, 101.0292, 134.4601, 171.8544, 205.3456, 227.9183, 246.1518]
 def interp(v, xs, ys):
     i = next((i for i in range(len(xs)-1) if v <= xs[i+1]), len(xs)-2)
     return ys[i] + (v-xs[i])/(xs[i+1]-xs[i])*(ys[i+1]-ys[i])
@@ -58,6 +58,14 @@ html+='</svg>'
 (root/'docs/references/bqc-front-review.html').write_text(html)
 print(f'Generated {len(rows)} codes from observed frontal dots')
 with (root/'mobile/lib/bqc_digitized.dart').open('a') as f:
+    # Registered side illustration coords (864×1152). Regenerate via side RBF
+    # calibration when bqc-side-digitized.csv is updated.
+    side_dig = root/'docs/references'/'bqc-side-digitized.csv'
+    if side_dig.exists():
+        f.write('\nconst bqcDigitizedSide = <String, Offset>{\n')
+        for r in csv.DictReader(side_dig.open()):
+            f.write("  '%s': Offset(%s, %s),\n"%(r['code'], r['x'], r['y']))
+        f.write('};\n')
     for name, filename in [('bqcFrontSourceDots','bqc-front-dots.csv'),('bqcSideSourceDots','bqc-side-dots.csv')]:
         data=list(csv.DictReader((root/'docs/references'/filename).open()))
         f.write('\nconst '+name+' = <String, Offset>{\n')

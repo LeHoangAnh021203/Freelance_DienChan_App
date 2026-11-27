@@ -708,13 +708,17 @@ class _FaceMeshPainter extends CustomPainter {
       old.wire != wire;
 }
 
+/// Project mesh vertex → front illustration UV (864×1152), tuned to
+/// `bqcDigitizedFront` midline landmarks (126…87).
 Offset faceDrawingUV(List<double> v) {
   const rows = [
-    [8.27, 260.0, 43.0],
+    // [meshY, illustY_px, xScale]
+    [8.27, 250.0, 43.0],
     [2.66, 500.0, 49.5],
-    [-1.13, 685.0, 45.0],
-    [-4.34, 810.0, 39.0],
-    [-9.41, 995.0, 40.0],
+    [-0.46, 635.0, 46.0],
+    [-2.09, 724.0, 42.0],
+    [-6.15, 885.0, 40.0],
+    [-9.41, 980.0, 40.0],
   ];
   var y = rows.last[1];
   var xScale = rows.last[2];
@@ -749,30 +753,41 @@ extension FacePointProjectionX on FacePointProjection {
       this == FacePointProjection.behindLeftEar;
 }
 
-/// Approximate registration of the photographed profile to canonical depth/height.
-/// Coordinates are graphical estimates, not clinically validated positions.
-Offset profilePhotoToPlane(Offset photo) {
+/// Map side-illustration UV (normalized on 864×1152 `dienchan_face_side`)
+/// to the mesh (z, height) plane used for profile anchoring.
+/// Control rows follow registered 2D landmarks (126, 8, 1, 19, 127, 87).
+/// Graphical estimate only — not clinically validated.
+Offset profileIllustrationToPlane(Offset uv) {
   const rows = [
-    [465.0, 8.27, 254.0, 4.48],
-    [817.0, 2.66, 207.0, 5.0],
-    [1035.0, -1.13, 76.0, 7.48],
-    [1164.0, -4.34, 137.0, 5.0],
-    [1425.0, -9.41, 220.0, 4.26],
+    // [illustY_px, meshHeight, frontX_px, frontZ]
+    [248.0, 8.27, 235.0, 4.50],
+    [510.0, 2.66, 210.0, 5.20],
+    [615.0, 0.10, 108.0, 7.40],
+    [705.0, -2.05, 128.0, 6.50],
+    [855.0, -6.20, 175.0, 4.80],
+    [940.0, -8.80, 168.0, 4.50],
   ];
-  final x = photo.dx * 1368, y = photo.dy * 1824;
+  // px per mesh-z unit — keeps ear landmarks (0, 16) on the cheek surface.
+  const scale = 90.0;
+  final x = uv.dx * 864;
+  final y = uv.dy * 1152;
   if (y < rows.first[0] || y > rows.last[0]) return const Offset(999, 999);
   for (var i = 0; i < rows.length - 1; i++) {
     final a = rows[i], b = rows[i + 1];
-    if (y <= b[0]) {
-      final f = (y - a[0]) / (b[0] - a[0]);
+    if (y <= b[0] || i == rows.length - 2) {
+      final f = ((y - a[0]) / (b[0] - a[0])).clamp(0.0, 1.0);
       final height = a[1] + f * (b[1] - a[1]);
       final frontX = a[2] + f * (b[2] - a[2]);
       final frontZ = a[3] + f * (b[3] - a[3]);
-      return Offset(frontZ - (x - frontX) / 48, height);
+      return Offset(frontZ - (x - frontX) / scale, height);
     }
   }
   return const Offset(999, 999);
 }
+
+/// Legacy alias: older call sites passed source-photo UVs (1368×1824).
+/// Prefer [profileIllustrationToPlane] with `bqcDigitizedSide` coordinates.
+Offset profilePhotoToPlane(Offset photo) => profileIllustrationToPlane(photo);
 
 class FacePoint {
   const FacePoint(
@@ -808,7 +823,7 @@ List<FacePointAnchor> anchorFacePoints(FaceMesh mesh, List<FacePoint> points) {
         ? mesh.vertices.map((v) => Offset(v[2], v[1])).toList()
         : uv;
     final position = profile
-        ? profilePhotoToPlane(point.position)
+        ? profileIllustrationToPlane(point.position)
         : point.position;
     FacePointAnchor? best;
     var outermost = -double.infinity;

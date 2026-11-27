@@ -90,6 +90,7 @@ flutter:
     - assets/models/MEDIAPIPE_LICENSE
     - assets/images/dienchan_face_front.png
     - assets/images/dienchan_face_side.png
+    - assets/images/dienchan_face_side_ref.jpg
     - assets/images/do_hinh_trac_dien.png
     - assets/images/do_hinh_tren_dau.png
     - assets/images/do_hinh_tai_gay.png

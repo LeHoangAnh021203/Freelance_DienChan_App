@@ -42,31 +42,31 @@ class BqcGridReference {
 // Manually aligned anatomical grid on the project's own frontal drawing.
 // This calibration is illustrative; it is not a measurement of the warped photo.
 const _columns = <String, double>{
-  'O': 0,
-  'A': 16,
-  'B': 38,
-  'C': 68,
-  'D': 80,
-  'E': 100,
-  'G': 133,
-  'H': 158,
-  'K': 218,
-  'L': 248,
+  'O': 0.0000,
+  'A': 13.3070,
+  'B': 29.3962,
+  'C': 48.7417,
+  'D': 64.8124,
+  'E': 101.0292,
+  'G': 134.4601,
+  'H': 171.8544,
+  'K': 205.3456,
+  'L': 227.9183,
 };
 const _rows = <int, double>{
-  0: 250,
-  1: 300,
-  2: 350,
-  3: 402,
-  4: 445,
-  5: 500,
-  6: 550,
-  7: 635,
-  8: 695,
-  9: 745,
-  10: 810,
-  11: 885,
-  12: 941,
+  0: 250.0000,
+  1: 298.7457,
+  2: 349.9902,
+  3: 401.9882,
+  4: 444.9826,
+  5: 499.9788,
+  6: 549.9842,
+  7: 635.0033,
+  8: 695.0037,
+  9: 745.0000,
+  10: 785.3637,
+  11: 884.9960,
+  12: 941.0000,
 };
 
 /// Vertical BQC lines on the 864×1152 front diagram (normalized x).
@@ -104,17 +104,38 @@ List<({String label, double y})> bqcFrontGridRows() {
   ];
 }
 
-/// Profile grid columns on the side diagram (normalized x), front → ear.
+/// Profile grid on the clean H.2 plate (`dienchan_face_side_ref.jpg`).
+/// Measured from the user Tra Huyệt sample crop (letterboxed 864×1152).
 List<({String label, double x})> bqcSideGridColumns() => const [
-  (label: 'L', x: 0.16),
-  (label: 'M', x: 0.28),
-  (label: 'N', x: 0.42),
-  (label: 'P', x: 0.58),
-  (label: 'Q', x: 0.72),
+  (label: 'L', x: 0.268700),
+  (label: 'M', x: 0.362426),
+  (label: 'N', x: 0.456152),
+  (label: 'P', x: 0.549879),
+  (label: 'Q', x: 0.643605),
 ];
 
-/// Profile grid rows share the front vertical bands (normalized y).
-List<({String label, double y})> bqcSideGridRows() => bqcFrontGridRows();
+/// Horizontal bands O–XII on the clean H.2 plate.
+List<({String label, double y})> bqcSideGridRows() => const [
+  (label: 'O', y: 0.241044),
+  (label: 'I', y: 0.288327),
+  (label: 'II', y: 0.335611),
+  (label: 'III', y: 0.382894),
+  (label: 'IV', y: 0.430178),
+  (label: 'V', y: 0.477461),
+  (label: 'VI', y: 0.516059),
+  (label: 'VII', y: 0.586292),
+  (label: 'VIII', y: 0.626162),
+  (label: 'IX', y: 0.666032),
+  (label: 'X', y: 0.705901),
+  (label: 'XI', y: 0.745771),
+  (label: 'XII', y: 0.785641),
+];
+
+/// Side positions registered onto the user-reference diagram.
+List<Offset> bqcSidePositions(String code) {
+  final point = bqcDigitizedSide[code];
+  return point == null ? const [] : [point];
+}
 
 const bqcGridReferences = <String, BqcGridReference>{
   '0': BqcGridReference('P-Q', '7', side: 'none'),

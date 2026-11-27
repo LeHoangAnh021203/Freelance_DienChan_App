@@ -15,11 +15,13 @@ Mặt 3D dùng cùng tọa độ chuẩn hóa với 2D rồi neo vào tam giác 
 
 ## Cập nhật từ file ảnh gốc người dùng cung cấp
 
-Hai ảnh nguyên bản được lưu tại `source-images/` và đóng gói trong `mobile/assets/references/` để đối chiếu trong ứng dụng. Nguồn đọc thủ công: `bqc-front-dots.csv` (198 mã) và `bqc-side-dots.csv` (không gồm sơ đồ sau tai). Tọa độ CSV tính theo khung ảnh hiển thị 1368 × 1824; tỉ lệ ảnh gốc 1920 × 2560 không đổi.
+Hai ảnh nguyên bản được lưu tại `source-images/` và đóng gói trong `mobile/assets/references/` để đối chiếu trong ứng dụng. Nguồn đọc thủ công: `bqc-front-dots.csv` (198 mã) và `bqc-side-dots.csv` (108 mã, gồm sơ đồ SAU TAI: 14, 15, 54–56, 200–204). Tọa độ CSV tính theo khung ảnh hiển thị 1368 × 1824; tỉ lệ ảnh gốc 1920 × 2560 không đổi. Màn Tra Huyệt mặt nghiêng (H.2) dùng trực tiếp `bqc-side-155.jpg` + `bqcSideSourceDots` để khớp ảnh gốc.
 
 `tools/build_bqc_digitized.py` căn từng dải hàng/cột từ ảnh chính diện sang hình minh họa của ứng dụng. Điểm nằm giữa các đường lưới giữ vị trí nội suy từ chấm quan sát, không lấy tâm ô. Cách này bù độ nghiêng/convergence cục bộ, **không phải phục hồi đầy đủ độ cong trang sách**. Điểm hai bên lấy một phía được đọc và đối xứng trên hình đích; sai số đọc thủ công và khác biệt tỉ lệ hình minh họa vẫn còn.
 
-`bqcFrontPositions` hiện chỉ dùng chấm đã đọc, không dùng tâm ô hoặc các hiệu chỉnh đường giữa cũ. Các mã 270, 399, 428 trên hình chính diện và 265 trên hình trắc diện được bổ sung. Tổng danh mục hiện 259 mã; đây không phải số điểm đã ánh xạ 3D. Mã 277 trước đây bị đọc nhầm từ hàng 287 lặp trong bảng; mã 277 có trên hình trắc diện nên giữ trong danh mục nhưng không dùng tọa độ B/8–9 để dựng mặt trước.
+`bqcFrontPositions` / `bqcDigitizedSide` đặt lại theo công thức cột×hàng (mốc giải phẫu): hàng 0–12 neo theo huyệt mốc (126, 8, 189, 1, 173, 63, 87…); cột O–L (chính diện) và L–Q (trắc diện) fit từ bảng + chấm đã quan sát. Chỉ reposition các mã đã có trên đồ hình — không invent mã chỉ có trong bảng (vd. 46, 437). Ô dạng C–D/4–5 lấy trung điểm ô. Huyệt sau tai giữ chấm quan sát.
+
+`bqcFrontPositions` hiện chỉ dùng chấm đã đặt theo công thức trên tập mã đã đọc, không dùng tâm ô thô từ lưới cũ. Các mã 270, 399, 428 trên hình chính diện và 265 trên hình trắc diện được bổ sung. Tổng danh mục hiện 259 mã; đây không phải số điểm đã ánh xạ 3D. Mã 277 trước đây bị đọc nhầm từ hàng 287 lặp trong bảng; mã 277 có trên hình trắc diện nên giữ trong danh mục nhưng không dùng tọa độ B/8–9 để dựng mặt trước.
 
 Xem `bqc-front-review.html` để đối chiếu vòng đỏ với chấm trên ảnh gốc. Trong ứng dụng, chọn huyệt rồi bấm “Đối chiếu chấm trên tài liệu”; hình có thể phóng to. Những mã chỉ có ở hình trắc diện được lưu trong hệ tọa độ ảnh nguồn, được chiếu ước lượng lên bề mặt 3D theo mô tả bên dưới. Mã chỉ có bảng nhưng chưa xác định được chấm (ví dụ 46, 437) không vẽ tọa độ phỏng đoán. Kiểm thử xác nhận tính nhất quán dữ liệu và phép neo tam giác, không thay thế kiểm duyệt vị trí huyệt.
 

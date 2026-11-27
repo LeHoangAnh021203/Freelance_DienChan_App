@@ -26,6 +26,15 @@ void main() {
       expect(bqcFrontPositions('46'), isEmpty);
       expect(bqcFrontPositions('55'), isEmpty);
       expect(bqcSideSourceDots['62'], isNotNull);
+      expect(bqcDigitizedSide.length, 108);
+      expect(bqcDigitizedSide.containsKey('14'), isTrue);
+      expect(bqcDigitizedSide.containsKey('200'), isTrue);
+      expect(bqcSidePositions('0').single.dx, greaterThan(0.45));
+      expect(bqcSidePositions('1').single.dx, lessThan(0.25));
+      for (final entry in bqcDigitizedSide.entries) {
+        expect(entry.value.dx, inInclusiveRange(0, 1));
+        expect(entry.value.dy, inInclusiveRange(0, 1));
+      }
     },
   );
   test('Measured face landmarks remain on the 3D surface', () async {

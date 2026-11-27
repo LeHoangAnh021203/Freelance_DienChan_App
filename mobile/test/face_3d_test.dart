@@ -76,7 +76,7 @@ void main() {
         ])
           FacePoint(
             code,
-            bqcSideSourceDots[code]!,
+            bqcDigitizedSide[code]!,
             Colors.red,
             projection: projection,
           ),
@@ -92,6 +92,17 @@ void main() {
       ).reduce((a, b) => a + b);
       expect(shouldDrawFaceAnchor(anchor, uv), isTrue);
     }
+    // Ear landmark 0 should sit on the lateral cheek, not the nose tip.
+    final ear = anchors.firstWhere(
+      (a) =>
+          a.point.code == '0' &&
+          a.point.projection == FacePointProjection.rightProfile,
+    );
+    final earX = List.generate(
+      3,
+      (i) => mesh.vertices[ear.triangle[i]][0] * ear.weights[i],
+    ).reduce((a, b) => a + b);
+    expect(earX, greaterThan(3.5));
   });
 
   test(
@@ -107,7 +118,7 @@ void main() {
         ])
           FacePoint(
             '60',
-            const Offset(422 / 1368, 879 / 1824),
+            bqcDigitizedSide['60']!,
             Colors.red,
             projection: projection,
           ),
