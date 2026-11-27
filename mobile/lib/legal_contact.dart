@@ -124,68 +124,76 @@ class _ReflexMapViewerPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F2EE),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF71BFB5),
-        foregroundColor: Colors.white,
-        title: const Text(
-          'Thông tin đồ hình',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
-        children: [
-          Text(
-            map.title.toUpperCase(),
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 16,
-              letterSpacing: 0.2,
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) {
+        return Scaffold(
+          backgroundColor: const Color(0xFFF4F2EE),
+          appBar: AppBar(
+            backgroundColor: const Color(0xFF71BFB5),
+            foregroundColor: Colors.white,
+            title: Text(
+              tr('Thông tin đồ hình', 'Diagram information'),
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
-          const SizedBox(height: 6),
-          Container(height: 1.2, color: const Color(0xFF71BFB5)),
-          const SizedBox(height: 12),
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFD7DED9)),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: InteractiveViewer(
-              minScale: 1,
-              maxScale: 5,
-              child: Image.asset(map.asset, fit: BoxFit.contain),
-            ),
-          ),
-          const SizedBox(height: 14),
-          ...map.paragraphs.map(
-            (p) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Text(
-                p,
+          body: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 28),
+            children: [
+              Text(
+                map.title.toUpperCase(),
                 style: const TextStyle(
-                  fontSize: 14.5,
-                  height: 1.45,
-                  color: Color(0xFF222222),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                  letterSpacing: 0.2,
                 ),
               ),
-            ),
+              const SizedBox(height: 6),
+              Container(height: 1.2, color: const Color(0xFF71BFB5)),
+              const SizedBox(height: 12),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFD7DED9)),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 5,
+                  child: Image.asset(map.asset, fit: BoxFit.contain),
+                ),
+              ),
+              const SizedBox(height: 14),
+              ...map.paragraphs.map(
+                (p) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Text(
+                    p,
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      height: 1.45,
+                      color: Color(0xFF222222),
+                    ),
+                  ),
+                ),
+              ),
+              Text(
+                tr(
+                  'Nội dung mang tính tham khảo học tập, không thay thế khám chữa bệnh.',
+                  'Educational reference only; not a substitute for medical care.',
+                ),
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  height: 1.4,
+                  color: Color(0xFF728076),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
           ),
-          const Text(
-            'Nội dung mang tính tham khảo học tập, không thay thế khám chữa bệnh.',
-            style: TextStyle(
-              fontSize: 12.5,
-              height: 1.4,
-              color: Color(0xFF728076),
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

@@ -5191,59 +5191,119 @@ class _ProtocolListPageBody extends StatefulWidget {
 }
 
 class _ProtocolListPageBodyState extends State<_ProtocolListPageBody> {
+  /// Filter keys stay Vietnamese so selection survives language changes.
   String _filter = 'Tất cả';
-  final _protocols = const [
-    ('Bồi bổ, thông khí huyết', 'Cơ bản', '8 huyệt'),
-    ('Bộ bổ âm huyết', 'Cơ bản', '6 huyệt'),
-    ('Bộ giáng khí', 'Nâng Cao', '7 huyệt'),
-    ('Bộ thăng khí', 'Nâng Cao', '9 huyệt'),
-    ('Bộ điều hòa', 'Cơ bản', '5 huyệt'),
-    ('Chống mệt', 'Cơ bản', '4 huyệt'),
-    ('Chống co cơ', 'Nâng Cao', '6 huyệt'),
-    ('Cấp cứu ngất xỉu', 'Nâng Cao', '3 huyệt'),
+  static const _protocols = [
+    (
+      titleVi: 'Bồi bổ, thông khí huyết',
+      titleEn: 'Nourish and circulate qi-blood',
+      levelVi: 'Cơ bản',
+      levelEn: 'Basic',
+      count: 8,
+    ),
+    (
+      titleVi: 'Bộ bổ âm huyết',
+      titleEn: 'Nourish yin-blood set',
+      levelVi: 'Cơ bản',
+      levelEn: 'Basic',
+      count: 6,
+    ),
+    (
+      titleVi: 'Bộ giáng khí',
+      titleEn: 'Descending qi set',
+      levelVi: 'Nâng Cao',
+      levelEn: 'Advanced',
+      count: 7,
+    ),
+    (
+      titleVi: 'Bộ thăng khí',
+      titleEn: 'Ascending qi set',
+      levelVi: 'Nâng Cao',
+      levelEn: 'Advanced',
+      count: 9,
+    ),
+    (
+      titleVi: 'Bộ điều hòa',
+      titleEn: 'Harmonizing set',
+      levelVi: 'Cơ bản',
+      levelEn: 'Basic',
+      count: 5,
+    ),
+    (
+      titleVi: 'Chống mệt',
+      titleEn: 'Anti-fatigue',
+      levelVi: 'Cơ bản',
+      levelEn: 'Basic',
+      count: 4,
+    ),
+    (
+      titleVi: 'Chống co cơ',
+      titleEn: 'Anti-spasm',
+      levelVi: 'Nâng Cao',
+      levelEn: 'Advanced',
+      count: 6,
+    ),
+    (
+      titleVi: 'Cấp cứu ngất xỉu',
+      titleEn: 'Fainting first aid',
+      levelVi: 'Nâng Cao',
+      levelEn: 'Advanced',
+      count: 3,
+    ),
   ];
 
   @override
   Widget build(BuildContext context) {
-    final visible = _protocols
-        .where((p) => _filter == 'Tất cả' || p.$2 == _filter)
-        .toList();
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) {
+        final visible = _protocols
+            .where((p) => _filter == 'Tất cả' || p.levelVi == _filter)
+            .toList();
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-      children: [
-        const _LegacyHeaderCard(
-          title: 'Phác Đồ',
-          subtitle: 'Phác đồ điều trị bệnh',
-          icon: Icons.assignment_turned_in_outlined,
-          colors: [Color(0xFFB44A3C), Color(0xFFD77862)],
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          children: ['Tất cả', 'Cơ bản', 'Nâng Cao'].map((filter) {
-            return ChoiceChip(
-              label: Text(filter),
-              selected: _filter == filter,
-              onSelected: (_) => setState(() => _filter = filter),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 10),
-        ...visible.map(
-          (p) => _LegacyInfoTile(
-            title: p.$1,
-            subtitle: '${p.$2} · ${p.$3}',
-            trailing: 'Chi tiết',
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => _ProtocolDetailPage(title: p.$1),
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+          children: [
+            _LegacyHeaderCard(
+              title: tr('Phác Đồ', 'Protocols'),
+              subtitle: tr('Phác đồ điều trị bệnh', 'Treatment protocols'),
+              icon: Icons.assignment_turned_in_outlined,
+              colors: const [Color(0xFFB44A3C), Color(0xFFD77862)],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              children: [
+                ('Tất cả', tr('Tất cả', 'All')),
+                ('Cơ bản', tr('Cơ bản', 'Basic')),
+                ('Nâng Cao', tr('Nâng Cao', 'Advanced')),
+              ].map((filter) {
+                return ChoiceChip(
+                  label: Text(filter.$2),
+                  selected: _filter == filter.$1,
+                  onSelected: (_) => setState(() => _filter = filter.$1),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 10),
+            ...visible.map(
+              (p) => _LegacyInfoTile(
+                title: tr(p.titleVi, p.titleEn),
+                subtitle:
+                    '${tr(p.levelVi, p.levelEn)} · ${tr('${p.count} huyệt', '${p.count} points')}',
+                trailing: tr('Chi tiết', 'Details'),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        _ProtocolDetailPage(title: tr(p.titleVi, p.titleEn)),
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }
@@ -5255,124 +5315,170 @@ class _ProtocolDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const steps = ['Huyệt 26', 'Huyệt 124', 'Huyệt 19', 'Huyệt 61'];
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6FAF4),
-      appBar: AppBar(title: Text(title)),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          const _SafetyNoteCard(),
-          const SizedBox(height: 12),
-          ...steps.asMap().entries.map((entry) {
-            final code = entry.value.replaceFirst('Huyệt ', '');
-            return _LegacyInfoTile(
-              title: 'Bước ${entry.key + 1}: ${entry.value}',
-              subtitle: '${acupointLocationLabel(code)} · day ấn 30–60 giây',
-              trailing: 'Xem huyệt',
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => _LegacyModulePage(
-                    module: dienChanModules.first,
-                    initialCode: code,
+    const codes = ['26', '124', '19', '61'];
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) {
+        return Scaffold(
+          backgroundColor: const Color(0xFFF6FAF4),
+          appBar: AppBar(title: Text(title)),
+          body: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              const _SafetyNoteCard(),
+              const SizedBox(height: 12),
+              ...codes.asMap().entries.map((entry) {
+                final code = entry.value;
+                return _LegacyInfoTile(
+                  title: tr(
+                    'Bước ${entry.key + 1}: Huyệt $code',
+                    'Step ${entry.key + 1}: Point $code',
                   ),
-                ),
-              ),
-            );
-          }),
-        ],
-      ),
+                  subtitle: tr(
+                    '${acupointLocationLabel(code)} · day ấn 30–60 giây',
+                    '${acupointLocationLabel(code)} · press 30–60 seconds',
+                  ),
+                  trailing: tr('Xem huyệt', 'View point'),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => _LegacyModulePage(
+                        module: dienChanModules.first,
+                        initialCode: code,
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
 class _ReflexMapItem {
   const _ReflexMapItem({
-    required this.title,
+    required this.titleVi,
+    required this.titleEn,
     required this.asset,
-    required this.paragraphs,
+    required this.paragraphsVi,
+    this.paragraphsEn = const [],
   });
 
-  final String title;
+  final String titleVi;
+  final String titleEn;
   final String asset;
-  final List<String> paragraphs;
+  final List<String> paragraphsVi;
+  final List<String> paragraphsEn;
+
+  String get title => tr(titleVi, titleEn);
+  List<String> get paragraphs =>
+      isEnglish && paragraphsEn.isNotEmpty ? paragraphsEn : paragraphsVi;
 }
 
 class _ReflexMapListPageBody extends StatelessWidget {
   const _ReflexMapListPageBody();
 
-  static const _updating = ['Thông tin đang được cập nhật.'];
+  static const _updatingVi = ['Thông tin đang được cập nhật.'];
+  static const _updatingEn = ['Information is being updated.'];
 
   static const _maps = [
     _ReflexMapItem(
-      title: 'Phản Chiếu Ngoại Vi Trắc Diện',
+      titleVi: 'Phản Chiếu Ngoại Vi Trắc Diện',
+      titleEn: 'Peripheral profile reflex map',
       asset: 'assets/images/do_hinh/ngoai_vi_trac_dien.jpg',
-      paragraphs: _updating,
+      paragraphsVi: _updatingVi,
+      paragraphsEn: _updatingEn,
     ),
     _ReflexMapItem(
-      title: 'Phản Chiếu Ngoại Vi Trên Đầu',
+      titleVi: 'Phản Chiếu Ngoại Vi Trên Đầu',
+      titleEn: 'Peripheral head reflex map',
       asset: 'assets/images/do_hinh/ngoai_vi_tren_dau.jpg',
-      paragraphs: _updating,
+      paragraphsVi: _updatingVi,
+      paragraphsEn: _updatingEn,
     ),
     _ReflexMapItem(
-      title: 'Phản Chiếu Ngoại Vi Trên Đầu (2)',
+      titleVi: 'Phản Chiếu Ngoại Vi Trên Đầu (2)',
+      titleEn: 'Peripheral head reflex map (2)',
       asset: 'assets/images/do_hinh/ngoai_vi_tren_dau_2.jpg',
-      paragraphs: _updating,
+      paragraphsVi: _updatingVi,
+      paragraphsEn: _updatingEn,
     ),
     _ReflexMapItem(
-      title: 'Ngoại Vi Cơ Thể (Ngoại Vi Âm Dương)',
+      titleVi: 'Ngoại Vi Cơ Thể (Ngoại Vi Âm Dương)',
+      titleEn: 'Body periphery (yin-yang)',
       asset: 'assets/images/do_hinh/ngoai_vi_am_duong.jpg',
-      paragraphs: _updating,
+      paragraphsVi: _updatingVi,
+      paragraphsEn: _updatingEn,
     ),
     _ReflexMapItem(
-      title: 'Phản Chiếu Ngoại Vi Cơ Thể Trên Vỏ Não',
+      titleVi: 'Phản Chiếu Ngoại Vi Cơ Thể Trên Vỏ Não',
+      titleEn: 'Body periphery on the cerebral cortex',
       asset: 'assets/images/do_hinh/ngoai_vi_vo_nao.jpg',
-      paragraphs: _updating,
+      paragraphsVi: _updatingVi,
+      paragraphsEn: _updatingEn,
     ),
     _ReflexMapItem(
-      title: 'Phản Chiếu Não Bộ',
+      titleVi: 'Phản Chiếu Não Bộ',
+      titleEn: 'Brain reflex map',
       asset: 'assets/images/do_hinh/nao_bo.jpg',
-      paragraphs: _updating,
+      paragraphsVi: _updatingVi,
+      paragraphsEn: _updatingEn,
     ),
     _ReflexMapItem(
-      title: 'Phản Chiếu Nội Tạng Trên Mặt',
+      titleVi: 'Phản Chiếu Nội Tạng Trên Mặt',
+      titleEn: 'Internal organs on the face',
       asset: 'assets/images/do_hinh/noi_tang_tren_mat.jpg',
-      paragraphs: [
-        // Chú thích lấy từ chú giải trên ảnh nguồn
+      paragraphsVi: [
         'a. Tim · b. Phổi · c. Gan · d. Bao tử · e. Lá lách · f. Mật',
         'g. Thận · h. Ruột già · i. Ruột non · j. Bàng quang · k. Niệu đạo · l. Tụy',
       ],
-    ),
-    _ReflexMapItem(
-      title: 'Phản Chiếu Nội Tạng Trên Trán',
-      asset: 'assets/images/do_hinh/noi_tang_tren_tran.jpg',
-      paragraphs: [
-        // Chú thích lấy từ chú giải trên ảnh nguồn
-        'a. Tim · b. Phổi · c. Gan · d. Bao tử · e. Lá lách',
-        'f. Mật · g. Thận · h. Ruột già · i. Ruột non · j. Bàng quang · k. Niệu đạo',
+      paragraphsEn: [
+        'a. Heart · b. Lungs · c. Liver · d. Stomach · e. Spleen · f. Gallbladder',
+        'g. Kidney · h. Large intestine · i. Small intestine · j. Bladder · k. Urethra · l. Pancreas',
       ],
     ),
     _ReflexMapItem(
-      title: 'Phản Chiếu Sinh Dục Nữ',
+      titleVi: 'Phản Chiếu Nội Tạng Trên Trán',
+      titleEn: 'Internal organs on the forehead',
+      asset: 'assets/images/do_hinh/noi_tang_tren_tran.jpg',
+      paragraphsVi: [
+        'a. Tim · b. Phổi · c. Gan · d. Bao tử · e. Lá lách',
+        'f. Mật · g. Thận · h. Ruột già · i. Ruột non · j. Bàng quang · k. Niệu đạo',
+      ],
+      paragraphsEn: [
+        'a. Heart · b. Lungs · c. Liver · d. Stomach · e. Spleen',
+        'f. Gallbladder · g. Kidney · h. Large intestine · i. Small intestine · j. Bladder · k. Urethra',
+      ],
+    ),
+    _ReflexMapItem(
+      titleVi: 'Phản Chiếu Sinh Dục Nữ',
+      titleEn: 'Female reproductive reflex map',
       asset: 'assets/images/do_hinh/sinh_duc_nu.jpg',
-      paragraphs: _updating,
+      paragraphsVi: _updatingVi,
+      paragraphsEn: _updatingEn,
     ),
     _ReflexMapItem(
-      title: 'Phản Chiếu Tim Và Não',
+      titleVi: 'Phản Chiếu Tim Và Não',
+      titleEn: 'Heart and brain reflex map',
       asset: 'assets/images/do_hinh/tim_va_nao.jpg',
-      paragraphs: _updating,
+      paragraphsVi: _updatingVi,
+      paragraphsEn: _updatingEn,
     ),
     _ReflexMapItem(
-      title: 'Người Suy Tư (Rodin)',
+      titleVi: 'Người Suy Tư (Rodin)',
+      titleEn: 'The Thinker (Rodin)',
       asset: 'assets/images/do_hinh/nguoi_suy_tu_rodin.jpg',
-      paragraphs: _updating,
+      paragraphsVi: _updatingVi,
+      paragraphsEn: _updatingEn,
     ),
     _ReflexMapItem(
-      title: 'Phản Chiếu Thái Cực Đồ Trên Mặt',
+      titleVi: 'Phản Chiếu Thái Cực Đồ Trên Mặt',
+      titleEn: 'Taiji diagram on the face',
       asset: 'assets/images/do_hinh/thai_cuc_do.jpg',
-      paragraphs: [
-        // Nội dung lấy từ ảnh nguồn
+      paragraphsVi: [
         'Đồ hình này tổng hợp toàn bộ cơ thể.',
         'Trong con người: Âm (trái) – Dương (phải)',
         'Trong đồ hình: Xanh (âm) – Đỏ (dương)',
@@ -5380,70 +5486,83 @@ class _ReflexMapListPageBody extends StatelessWidget {
         'Người lạnh tác động bên dương (làm cho người nóng)',
         'Để quân bình thì cả 2 bên Âm + Dương',
       ],
+      paragraphsEn: [
+        'This diagram summarizes the whole body.',
+        'In the person: Yin (left) – Yang (right)',
+        'In the diagram: Green (yin) – Red (yang)',
+        'For heat, work the yin side (to cool down)',
+        'For cold, work the yang side (to warm up)',
+        'For balance, work both Yin + Yang sides',
+      ],
     ),
   ];
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-      children: _maps
-          .map(
-            (map) => GestureDetector(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => _ReflexMapViewerPage(map: map),
-                ),
-              ),
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFDCE7E1)),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x14000000),
-                      blurRadius: 10,
-                      offset: Offset(0, 3),
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) {
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+          children: _maps
+              .map(
+                (map) => GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => _ReflexMapViewerPage(map: map),
                     ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(
-                      height: 168,
-                      child: ColoredBox(
-                        color: const Color(0xFFF7FBFA),
-                        child: Image.asset(
-                          map.asset,
-                          fit: BoxFit.contain,
-                          alignment: Alignment.center,
+                  ),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFDCE7E1)),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x14000000),
+                          blurRadius: 10,
+                          offset: Offset(0, 3),
                         ),
-                      ),
+                      ],
                     ),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      color: const Color(0xFF71BFB5),
-                      child: Text(
-                        map.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(
+                          height: 168,
+                          child: ColoredBox(
+                            color: const Color(0xFFF7FBFA),
+                            child: Image.asset(
+                              map.asset,
+                              fit: BoxFit.contain,
+                              alignment: Alignment.center,
+                            ),
+                          ),
                         ),
-                      ),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          color: const Color(0xFF71BFB5),
+                          child: Text(
+                            map.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-          )
-          .toList(),
+              )
+              .toList(),
+        );
+      },
     );
   }
 }
@@ -5451,71 +5570,78 @@ class _ReflexMapListPageBody extends StatelessWidget {
 class _ToolCatalogPageBody extends StatelessWidget {
   const _ToolCatalogPageBody();
 
+  static const _tools = [
+    ('Que dò + lăn cầu lạng đồng', 'Probe + copper roller'),
+    ('Que dò + lăn cầu lạng sừng', 'Probe + horn roller'),
+    ('Lăn cầu lạng 2 đầu', 'Double-ended roller'),
+    ('Lăn hít nhỏ', 'Small suction roller'),
+    ('Cào mini', 'Mini scraper'),
+    ('Búa gõ diện chẩn', 'Dien Chan tapping hammer'),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    const tools = [
-      'Que dò + lăn cầu lạng đồng',
-      'Que dò + lăn cầu lạng sừng',
-      'Lăn cầu lạng 2 đầu',
-      'Lăn hít nhỏ',
-      'Cào mini',
-      'Búa gõ diện chẩn',
-    ];
-    return GridView.builder(
-      padding: const EdgeInsets.all(16),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 10,
-        crossAxisSpacing: 10,
-        childAspectRatio: 0.78,
-      ),
-      itemCount: tools.length,
-      itemBuilder: (context, i) {
-        return Material(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () => _showToolContactSheet(context, tools[i]),
-            child: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) {
+        return GridView.builder(
+          padding: const EdgeInsets.all(16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 0.78,
+          ),
+          itemCount: _tools.length,
+          itemBuilder: (context, i) {
+            final label = tr(_tools[i].$1, _tools[i].$2);
+            return Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFDCE7E1)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Center(
-                      child: Transform.rotate(
-                        angle: i.isEven ? -0.25 : 0.25,
-                        child: Container(
-                          width: 96,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            color: i.isEven
-                                ? const Color(0xFF2E2E2E)
-                                : const Color(0xFF8B5B35),
-                            borderRadius: BorderRadius.circular(20),
+                onTap: () => _showToolContactSheet(context, label),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFDCE7E1)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Center(
+                          child: Transform.rotate(
+                            angle: i.isEven ? -0.25 : 0.25,
+                            child: Container(
+                              width: 96,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: i.isEven
+                                    ? const Color(0xFF2E2E2E)
+                                    : const Color(0xFF8B5B35),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                      Text(
+                        label.toUpperCase(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    tools[i].toUpperCase(),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -5575,14 +5701,17 @@ class _CourseSignupPageBodyState extends State<_CourseSignupPageBody> {
             Icons.check_circle_rounded,
             color: Color(0xFF2E7D32),
           ),
-          title: const Text('Đã gửi đăng ký'),
+          title: Text(tr('Đã gửi đăng ký', 'Registration sent')),
           content: Text(
-            'Trung tâm đã nhận đăng ký ${registration.courseName} của bạn và sẽ liên hệ qua số ${_phoneController.text.trim()} để xác nhận.',
+            tr(
+              'Trung tâm đã nhận đăng ký ${registration.courseName} của bạn và sẽ liên hệ qua số ${_phoneController.text.trim()} để xác nhận.',
+              'The center received your ${registration.courseName} registration and will contact ${_phoneController.text.trim()} to confirm.',
+            ),
           ),
           actions: [
             FilledButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Đóng'),
+              child: Text(tr('Đóng', 'Close')),
             ),
           ],
         ),
@@ -5596,7 +5725,9 @@ class _CourseSignupPageBodyState extends State<_CourseSignupPageBody> {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) => ListView(
       padding: const EdgeInsets.all(16),
       children: [
         ClipRRect(
@@ -5607,10 +5738,13 @@ class _CourseSignupPageBodyState extends State<_CourseSignupPageBody> {
           ),
         ),
         const SizedBox(height: 12),
-        const Text(
-          'Học Diện Chẩn – Chăm sức khỏe – Chủ động cuộc sống',
+        Text(
+          tr(
+            'Học Diện Chẩn – Chăm sức khỏe – Chủ động cuộc sống',
+            'Learn Dien Chan – Care for health – Live proactively',
+          ),
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             fontWeight: FontWeight.w800,
             fontSize: 14,
             color: Color(0xFF7A1D1D),
@@ -5694,9 +5828,9 @@ class _CourseSignupPageBodyState extends State<_CourseSignupPageBody> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Chọn khóa học',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+              Text(
+                tr('Chọn khóa học', 'Choose a course'),
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
               ),
               const SizedBox(height: 8),
               SegmentedButton<String>(
@@ -5704,7 +5838,11 @@ class _CourseSignupPageBodyState extends State<_CourseSignupPageBody> {
                     .map(
                       (course) => ButtonSegment(
                         value: course.key,
-                        label: Text(course.value),
+                        label: Text(
+                          course.key == 'K48-OFFLINE'
+                              ? tr('Khóa 48 - Offline', 'Course 48 - Offline')
+                              : tr('Khóa 49 - Online', 'Course 49 - Online'),
+                        ),
                       ),
                     )
                     .toList(),
@@ -5719,7 +5857,7 @@ class _CourseSignupPageBodyState extends State<_CourseSignupPageBody> {
                 textCapitalization: TextCapitalization.words,
                 validator: _validateFullName,
                 decoration: InputDecoration(
-                  labelText: 'Họ tên học viên',
+                  labelText: tr('Họ tên học viên', 'Student full name'),
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
@@ -5732,10 +5870,13 @@ class _CourseSignupPageBodyState extends State<_CourseSignupPageBody> {
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 validator: (value) => (value?.trim().isEmpty ?? true)
-                    ? 'Vui lòng nhập số điện thoại'
+                    ? tr(
+                        'Vui lòng nhập số điện thoại',
+                        'Please enter a phone number',
+                      )
                     : _validateOptionalPhone(value),
                 decoration: InputDecoration(
-                  labelText: 'Số điện thoại',
+                  labelText: tr('Số điện thoại', 'Phone number'),
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
@@ -5749,8 +5890,14 @@ class _CourseSignupPageBodyState extends State<_CourseSignupPageBody> {
                 maxLines: 2,
                 maxLength: 1000,
                 decoration: InputDecoration(
-                  labelText: 'Ghi chú (không bắt buộc)',
-                  hintText: 'Thời gian có thể liên hệ, câu hỏi về khóa học...',
+                  labelText: tr(
+                    'Ghi chú (không bắt buộc)',
+                    'Note (optional)',
+                  ),
+                  hintText: tr(
+                    'Thời gian có thể liên hệ, câu hỏi về khóa học...',
+                    'Best time to call, questions about the course...',
+                  ),
                   filled: true,
                   fillColor: Colors.white,
                   border: OutlineInputBorder(
@@ -5768,12 +5915,17 @@ class _CourseSignupPageBodyState extends State<_CourseSignupPageBody> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.send_rounded),
-                label: Text(_busy ? 'Đang gửi...' : 'Đăng ký khóa học'),
+                label: Text(
+                  _busy
+                      ? tr('Đang gửi...', 'Sending...')
+                      : tr('Đăng ký khóa học', 'Register for course'),
+                ),
               ),
             ],
           ),
         ),
       ],
+    ),
     );
   }
 }
@@ -6354,20 +6506,29 @@ class _DiseasePointDetail {
 
 class _DiseaseProtocol {
   const _DiseaseProtocol({
-    required this.title,
+    required this.titleVi,
+    required this.titleEn,
     required this.categoryId,
-    required this.categoryLabel,
     required this.points,
     required this.minutes,
     required this.details,
   });
 
-  final String title;
+  final String titleVi;
+  final String titleEn;
   final String categoryId;
-  final String categoryLabel;
   final List<String> points;
   final int minutes;
   final List<_DiseasePointDetail> details;
+
+  String get title => tr(titleVi, titleEn);
+
+  String get categoryLabel {
+    for (final category in _dienChanCategories) {
+      if (category.id == categoryId) return category.title;
+    }
+    return categoryId;
+  }
 }
 
 const _dienChanCategories = [
@@ -6463,9 +6624,9 @@ const _dienChanCategories = [
 
 const _dienChanDiseases = [
   _DiseaseProtocol(
-    title: 'Giải phóng ứ trệ',
+    titleVi: 'Giải phóng ứ trệ',
+    titleEn: 'Release stagnation',
     categoryId: 'tong-quat',
-    categoryLabel: 'Tổng quát',
     points: ['19', '14', '275', '61', '39', '26', '312', '184', '85', '87'],
     minutes: 8,
     details: [
@@ -6487,9 +6648,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Mệt mỏi toàn thân',
+    titleVi: 'Mệt mỏi toàn thân',
+    titleEn: 'Whole-body fatigue',
     categoryId: 'tong-quat',
-    categoryLabel: 'Tổng quát',
     points: ['0', '22', '62', '1', '37', '50', '19'],
     minutes: 10,
     details: [
@@ -6506,9 +6667,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Đau cổ vai gáy',
+    titleVi: 'Đau cổ vai gáy',
+    titleEn: 'Neck and shoulder pain',
     categoryId: 'co-xuong-khop',
-    categoryLabel: 'Hệ cơ xương khớp',
     points: ['41', '87', '85', '60', '34', '61', '14', '16'],
     minutes: 9,
     details: [
@@ -6525,9 +6686,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Đau khớp gối',
+    titleVi: 'Đau khớp gối',
+    titleEn: 'Knee joint pain',
     categoryId: 'co-xuong-khop',
-    categoryLabel: 'Hệ cơ xương khớp',
     points: ['50', '38', '156', '37', '39', '0', '61'],
     minutes: 8,
     details: [
@@ -6539,9 +6700,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Mụn viêm',
+    titleVi: 'Mụn viêm',
+    titleEn: 'Inflammatory acne',
     categoryId: 'da',
-    categoryLabel: 'Hệ da',
     points: ['127', '85', '29', '38', '41', '50'],
     minutes: 7,
     details: [
@@ -6553,9 +6714,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Nám da',
+    titleVi: 'Nám da',
+    titleEn: 'Melasma',
     categoryId: 'da',
-    categoryLabel: 'Hệ da',
     points: ['19', '37', '50', '14', '0', '26'],
     minutes: 8,
     details: [
@@ -6567,9 +6728,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Viêm xoang',
+    titleVi: 'Viêm xoang',
+    titleEn: 'Sinusitis',
     categoryId: 'tmh',
-    categoryLabel: 'Tai mũi họng',
     points: ['209', '491', '467', '61', '38', '17'],
     minutes: 8,
     details: [
@@ -6586,9 +6747,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Ù tai cấp tính',
+    titleVi: 'Ù tai cấp tính',
+    titleEn: 'Acute tinnitus',
     categoryId: 'tmh',
-    categoryLabel: 'Tai mũi họng',
     points: ['3', '61', '103', '124', '34', '16', '0'],
     minutes: 7,
     details: [
@@ -6600,9 +6761,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Ho kéo dài',
+    titleVi: 'Ho kéo dài',
+    titleEn: 'Persistent cough',
     categoryId: 'ho-hap',
-    categoryLabel: 'Hệ hô hấp',
     points: ['37', '38', '41', '17', '50', '19'],
     minutes: 8,
     details: [
@@ -6614,9 +6775,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Viêm họng',
+    titleVi: 'Viêm họng',
+    titleEn: 'Sore throat',
     categoryId: 'ho-hap',
-    categoryLabel: 'Hệ hô hấp',
     points: ['17', '61', '37', '127', '85'],
     minutes: 6,
     details: [
@@ -6628,9 +6789,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Mỏi mắt',
+    titleVi: 'Mỏi mắt',
+    titleEn: 'Eye strain',
     categoryId: 'nhan-khoa',
-    categoryLabel: 'Nhãn khoa',
     points: ['1', '61', '3', '26', '14', '16'],
     minutes: 6,
     details: [
@@ -6642,9 +6803,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Đau đầu do mắt',
+    titleVi: 'Đau đầu do mắt',
+    titleEn: 'Eye-related headache',
     categoryId: 'nhan-khoa',
-    categoryLabel: 'Nhãn khoa',
     points: ['124', '34', '3', '61', '26'],
     minutes: 7,
     details: [
@@ -6656,9 +6817,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Đầy bụng khó tiêu',
+    titleVi: 'Đầy bụng khó tiêu',
+    titleEn: 'Bloating / indigestion',
     categoryId: 'tieu-hoa',
-    categoryLabel: 'Hệ tiêu hóa',
     points: ['41', '50', '19', '39', '37'],
     minutes: 8,
     details: [
@@ -6675,9 +6836,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Rối loạn tiêu hóa',
+    titleVi: 'Rối loạn tiêu hóa',
+    titleEn: 'Digestive disorder',
     categoryId: 'tieu-hoa',
-    categoryLabel: 'Hệ tiêu hóa',
     points: ['37', '39', '50', '19', '0', '14'],
     minutes: 9,
     details: [
@@ -6689,9 +6850,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Stress',
+    titleVi: 'Stress',
+    titleEn: 'Stress',
     categoryId: 'than-kinh',
-    categoryLabel: 'Hệ thần kinh',
     points: ['17', '6', '19', '180', '26', '124'],
     minutes: 8,
     details: [
@@ -6718,9 +6879,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Mất ngủ',
+    titleVi: 'Mất ngủ',
+    titleEn: 'Insomnia',
     categoryId: 'than-kinh',
-    categoryLabel: 'Hệ thần kinh',
     points: ['124', '34', '267', '217', '51', '26', '16'],
     minutes: 10,
     details: [
@@ -6742,9 +6903,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Suy nhược thần kinh',
+    titleVi: 'Suy nhược thần kinh',
+    titleEn: 'Nervous exhaustion',
     categoryId: 'than-kinh',
-    categoryLabel: 'Hệ thần kinh',
     points: ['127', '37', '1', '50', '73', '106', '103'],
     minutes: 12,
     details: [
@@ -6756,9 +6917,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Tiểu đường hỗ trợ',
+    titleVi: 'Tiểu đường hỗ trợ',
+    titleEn: 'Diabetes support',
     categoryId: 'man-tinh',
-    categoryLabel: 'Bệnh mãn tính',
     points: ['19', '37', '50', '0', '26', '61'],
     minutes: 10,
     details: [
@@ -6770,9 +6931,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Gout hỗ trợ',
+    titleVi: 'Gout hỗ trợ',
+    titleEn: 'Gout support',
     categoryId: 'man-tinh',
-    categoryLabel: 'Bệnh mãn tính',
     points: ['41', '85', '50', '38', '61', '0'],
     minutes: 9,
     details: [
@@ -6784,9 +6945,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Cao huyết áp',
+    titleVi: 'Cao huyết áp',
+    titleEn: 'Hypertension',
     categoryId: 'tim-mach',
-    categoryLabel: 'Hệ tim mạch',
     points: ['26', '51', '156', '55', '14', '16', '8'],
     minutes: 8,
     details: [
@@ -6803,9 +6964,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Hồi hộp đánh trống ngực',
+    titleVi: 'Hồi hộp đánh trống ngực',
+    titleEn: 'Palpitations',
     categoryId: 'tim-mach',
-    categoryLabel: 'Hệ tim mạch',
     points: ['8', '60', '37', '39', '26', '124'],
     minutes: 7,
     details: [
@@ -6817,9 +6978,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Tiểu đêm nhiều lần',
+    titleVi: 'Tiểu đêm nhiều lần',
+    titleEn: 'Frequent nocturia',
     categoryId: 'tiet-nieu',
-    categoryLabel: 'Hệ tiết niệu sinh dục',
     points: ['26', '61', '3', '51', '17', '0'],
     minutes: 8,
     details: [
@@ -6831,9 +6992,9 @@ const _dienChanDiseases = [
     ],
   ),
   _DiseaseProtocol(
-    title: 'Đau bụng kinh',
+    titleVi: 'Đau bụng kinh',
+    titleEn: 'Menstrual cramps',
     categoryId: 'tiet-nieu',
-    categoryLabel: 'Hệ tiết niệu sinh dục',
     points: ['19', '37', '50', '39', '0', '14'],
     minutes: 9,
     details: [
@@ -6931,87 +7092,101 @@ class _DiseaseProtocolCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = _palettes[colorIndex % _palettes.length];
-    final visible = disease.points.take(8).join(' • ');
-    final remaining = disease.points.length - 8;
-    final extra = remaining > 0 ? ' ... và $remaining huyệt khác' : '';
 
-    return Material(
-      color: palette.bg,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: () => _onTap(context),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) {
+        final visible = disease.points.take(8).join(' • ');
+        final remaining = disease.points.length - 8;
+        final extra = remaining > 0
+            ? tr(
+                ' ... và $remaining huyệt khác',
+                ' ... and $remaining more points',
+              )
+            : '';
+
+        return Material(
+          color: palette.bg,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: palette.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                disease.title,
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 17,
-                  color: palette.accent,
-                ),
+            onTap: () => _onTap(context),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: palette.border),
               ),
-              const SizedBox(height: 2),
-              Text(
-                disease.categoryLabel,
-                style: TextStyle(
-                  color: palette.accent.withValues(alpha: 0.72),
-                  fontSize: 12.5,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: palette.pill,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  '$visible$extra',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: palette.accent,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    Icons.schedule_rounded,
-                    size: 15,
-                    color: palette.accent.withValues(alpha: 0.75),
-                  ),
-                  const SizedBox(width: 4),
                   Text(
-                    '~${disease.minutes} min',
+                    disease.title,
                     style: TextStyle(
-                      color: palette.accent.withValues(alpha: 0.75),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 17,
+                      color: palette.accent,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    disease.categoryLabel,
+                    style: TextStyle(
+                      color: palette.accent.withValues(alpha: 0.72),
                       fontSize: 12.5,
                     ),
                   ),
-                  const Spacer(),
-                  Icon(Icons.chevron_right_rounded, color: palette.accent),
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: palette.pill,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '$visible$extra',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: palette.accent,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.schedule_rounded,
+                        size: 15,
+                        color: palette.accent.withValues(alpha: 0.75),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        tr(
+                          '~${disease.minutes} phút',
+                          '~${disease.minutes} min',
+                        ),
+                        style: TextStyle(
+                          color: palette.accent.withValues(alpha: 0.75),
+                          fontSize: 12.5,
+                        ),
+                      ),
+                      const Spacer(),
+                      Icon(Icons.chevron_right_rounded, color: palette.accent),
+                    ],
+                  ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -7047,7 +7222,9 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
     final activeCode = _selectedCode;
     final detail = activeCode == null ? null : _detailFor(activeCode);
 
-    return Scaffold(
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) => Scaffold(
       backgroundColor: const Color(0xFFF6FAF4),
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -7065,7 +7242,10 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Text(
-                    'Đã bắt đầu phiên day huyệt “${disease.title}” (~${disease.minutes} phút)',
+                    tr(
+                      'Đã bắt đầu phiên day huyệt “${disease.title}” (~${disease.minutes} phút)',
+                      'Started “${disease.title}” session (~${disease.minutes} min)',
+                    ),
                   ),
                 ),
               );
@@ -7078,9 +7258,9 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
               ),
             ),
             icon: const Icon(Icons.play_arrow_rounded),
-            label: const Text(
-              'Bắt đầu phiên',
-              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+            label: Text(
+              tr('Bắt đầu phiên', 'Start session'),
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
             ),
           ),
         ),
@@ -7110,7 +7290,7 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
               scrollDirection: Axis.horizontal,
               children: [
                 _PointChip(
-                  label: 'Tất cả',
+                  label: tr('Tất cả', 'All'),
                   selected: _selectedCode == null,
                   onTap: () => setState(() => _selectedCode = null),
                 ),
@@ -7136,7 +7316,10 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
               padding: const EdgeInsets.fromLTRB(0, 8, 0, 0),
               child: Text(
                 [
-                  'Huyệt $activeCode · ${acupointLocationLabel(activeCode)}',
+                  tr(
+                    'Huyệt $activeCode · ${acupointLocationLabel(activeCode)}',
+                    'Point $activeCode · ${acupointLocationLabel(activeCode)}',
+                  ),
                   ?acupointViewHint(activeCode),
                 ].join(' '),
                 style: const TextStyle(
@@ -7154,15 +7337,18 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: const Color(0xFFF0B46A)),
             ),
-            child: const Row(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.warning_amber_rounded, color: Color(0xFFC8781A)),
-                SizedBox(width: 8),
+                const Icon(Icons.warning_amber_rounded, color: Color(0xFFC8781A)),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Kiểm tra chống chỉ định của mỗi huyệt trước khi sử dụng. Diện Chẩn chỉ hỗ trợ, không thay thế khám chữa bệnh.',
-                    style: TextStyle(height: 1.35, fontSize: 13),
+                    tr(
+                      'Kiểm tra chống chỉ định của mỗi huyệt trước khi sử dụng. Diện Chẩn chỉ hỗ trợ, không thay thế khám chữa bệnh.',
+                      'Check each point’s contraindications before use. Dien Chan supports care and does not replace medical treatment.',
+                    ),
+                    style: const TextStyle(height: 1.35, fontSize: 13),
                   ),
                 ),
               ],
@@ -7181,7 +7367,10 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${disease.points.length} huyệt trong phác đồ',
+                    tr(
+                      '${disease.points.length} huyệt trong phác đồ',
+                      '${disease.points.length} points in this protocol',
+                    ),
                     style: const TextStyle(
                       fontWeight: FontWeight.w900,
                       fontSize: 18,
@@ -7189,7 +7378,10 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Chọn từng mã huyệt phía trên để xem vị trí trên mặt và thông tin chi tiết.',
+                    tr(
+                      'Chọn từng mã huyệt phía trên để xem vị trí trên mặt và thông tin chi tiết.',
+                      'Select each point code above to see its face location and details.',
+                    ),
                     style: const TextStyle(
                       color: Color(0xFF728076),
                       height: 1.35,
@@ -7236,7 +7428,7 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'Huyệt $code',
+                                        tr('Huyệt $code', 'Point $code'),
                                         style: const TextStyle(
                                           fontWeight: FontWeight.w800,
                                         ),
@@ -7311,7 +7503,7 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
                           );
                         },
                         icon: const Icon(Icons.visibility_outlined, size: 18),
-                        label: const Text('Xem'),
+                        label: Text(tr('Xem', 'View')),
                       ),
                     ],
                   ),
@@ -7327,9 +7519,9 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Vị trí',
-                          style: TextStyle(
+                        Text(
+                          tr('Vị trí', 'Location'),
+                          style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             color: Color(0xFF1D5C45),
                           ),
@@ -7361,9 +7553,9 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Chống chỉ định',
-                          style: TextStyle(
+                        Text(
+                          tr('Chống chỉ định', 'Contraindications'),
+                          style: const TextStyle(
                             fontWeight: FontWeight.w800,
                             color: Color(0xFFC8781A),
                           ),
@@ -7374,9 +7566,9 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  const Text(
-                    'Tác dụng',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+                  Text(
+                    tr('Tác dụng', 'Effects'),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 6),
                   ...detail.effects.map(
@@ -7396,6 +7588,7 @@ class _DiseaseDetailPageState extends State<_DiseaseDetailPage> {
           ],
         ],
       ),
+    ),
     );
   }
 }
