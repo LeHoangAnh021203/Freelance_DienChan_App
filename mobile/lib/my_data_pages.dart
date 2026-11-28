@@ -134,36 +134,42 @@ class _JournalEditorSheetState extends State<_JournalEditorSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Ghi nhật ký',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+            Text(
+              tr('Ghi nhật ký', 'Write journal'),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 12),
             TextFormField(
               controller: _titleController,
               maxLength: 120,
-              decoration: const InputDecoration(
-                labelText: 'Tiêu đề',
-                hintText: 'VD: Day huyệt 26 buổi sáng',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('Tiêu đề', 'Title'),
+                hintText: tr(
+                  'VD: Day huyệt 26 buổi sáng',
+                  'e.g. Press point 26 in the morning',
+                ),
+                border: const OutlineInputBorder(),
               ),
               validator: (value) => (value?.trim().isEmpty ?? true)
-                  ? 'Vui lòng nhập tiêu đề'
+                  ? tr('Vui lòng nhập tiêu đề', 'Please enter a title')
                   : null,
             ),
             TextFormField(
               controller: _noteController,
               maxLines: 4,
               maxLength: 4000,
-              decoration: const InputDecoration(
-                labelText: 'Ghi chú',
-                hintText: 'Cảm nhận, thời gian day, thay đổi triệu chứng...',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: tr('Ghi chú', 'Notes'),
+                hintText: tr(
+                  'Cảm nhận, thời gian day, thay đổi triệu chứng...',
+                  'How it felt, session length, symptom changes...',
+                ),
+                border: const OutlineInputBorder(),
               ),
             ),
-            const Text(
-              'Cảm nhận sau khi day',
-              style: TextStyle(fontWeight: FontWeight.w700),
+            Text(
+              tr('Cảm nhận sau khi day', 'How you feel after pressing'),
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 6),
             Wrap(
@@ -184,7 +190,11 @@ class _JournalEditorSheetState extends State<_JournalEditorSheet> {
             FilledButton.icon(
               onPressed: _busy ? null : _save,
               icon: const Icon(Icons.save_rounded),
-              label: Text(_busy ? 'Đang lưu...' : 'Lưu nhật ký'),
+              label: Text(
+                _busy
+                    ? tr('Đang lưu...', 'Saving...')
+                    : tr('Lưu nhật ký', 'Save journal'),
+              ),
             ),
           ],
         ),
@@ -221,15 +231,15 @@ class _MyDataPageState extends State<_MyDataPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Xóa $what?'),
+        title: Text(tr('Xóa $what?', 'Delete $what?')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Hủy'),
+            child: Text(tr('Hủy', 'Cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Xóa'),
+            child: Text(tr('Xóa', 'Delete')),
           ),
         ],
       ),
@@ -249,12 +259,12 @@ class _MyDataPageState extends State<_MyDataPage> {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Nhật ký & mục đã lưu'),
-          bottom: const TabBar(
+          title: Text(tr('Nhật ký & mục đã lưu', 'Journal & saved')),
+          bottom: TabBar(
             tabs: [
-              Tab(text: 'Nhật ký'),
-              Tab(text: 'Đã lưu'),
-              Tab(text: 'Khóa học'),
+              Tab(text: tr('Nhật ký', 'Journal')),
+              Tab(text: tr('Đã lưu', 'Saved')),
+              Tab(text: tr('Khóa học', 'Courses')),
             ],
           ),
         ),
@@ -263,7 +273,7 @@ class _MyDataPageState extends State<_MyDataPage> {
             if (await _showJournalEditor(context) != null) _reload();
           },
           icon: const Icon(Icons.edit_note_rounded),
-          label: const Text('Ghi nhật ký'),
+          label: Text(tr('Ghi nhật ký', 'Write journal')),
         ),
         body: TabBarView(
           children: [
@@ -287,7 +297,7 @@ class _MyDataPageState extends State<_MyDataPage> {
                   ),
                   isThreeLine: entry.note.isNotEmpty || entry.mood != null,
                   trailing: IconButton(
-                    tooltip: 'Xóa nhật ký',
+                    tooltip: tr('Xóa nhật ký', 'Delete journal'),
                     icon: const Icon(Icons.delete_outline),
                     onPressed: () => _confirmDelete(
                       'nhật ký',
@@ -319,7 +329,7 @@ class _MyDataPageState extends State<_MyDataPage> {
                         : 'Yêu thích · ${_formatDateTime(bookmark.createdAt)}',
                   ),
                   trailing: IconButton(
-                    tooltip: 'Bỏ lưu',
+                    tooltip: tr('Bỏ lưu', 'Unsave'),
                     icon: const Icon(Icons.delete_outline),
                     onPressed: () => _confirmDelete(
                       'mục đã lưu',
@@ -384,7 +394,7 @@ class _AsyncList<T> extends StatelessWidget {
                   const SizedBox(height: 12),
                   OutlinedButton(
                     onPressed: onRefresh,
-                    child: const Text('Thử lại'),
+                    child: Text(tr('Thử lại', 'Retry')),
                   ),
                 ],
               ),

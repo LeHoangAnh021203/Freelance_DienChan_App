@@ -39,31 +39,40 @@ Future<void> _openLoginPage(BuildContext context) async {
 }
 
 class _SignInPrompt extends StatelessWidget {
-  const _SignInPrompt({
-    this.message = 'Đăng nhập để tham gia cộng đồng Diện Chẩn.',
-  });
+  const _SignInPrompt({this.message});
 
-  final String message;
+  final String? message;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      heightFactor: 1,
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: () => _openLoginPage(context),
-              icon: const Icon(Icons.login_rounded),
-              label: const Text('Đăng ký / Đăng nhập'),
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) {
+        final text =
+            message ??
+            tr(
+              'Đăng nhập để tham gia cộng đồng Diện Chẩn.',
+              'Sign in to join the Dien Chan community.',
+            );
+        return Center(
+          heightFactor: 1,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(text, textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: () => _openLoginPage(context),
+                  icon: const Icon(Icons.login_rounded),
+                  label: Text(tr('Đăng ký / Đăng nhập', 'Sign up / Sign in')),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -321,7 +330,7 @@ class _CountryField extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: _countries.contains(value) ? value : _countries.first,
       decoration: _authInputDecoration(
-        label: 'Quốc gia',
+        label: tr('Quốc gia', 'Country'),
         icon: Icons.public_rounded,
       ),
       items: _countries
@@ -446,17 +455,31 @@ class _AuthPageState extends State<_AuthPage> {
 
   @override
   Widget build(BuildContext context) {
-    return _AuthScaffold(
-      title: 'Đăng ký / Đăng nhập',
-      heading: 'Chào mừng đến với Diện Chẩn',
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) => _AuthScaffold(
+      title: tr('Đăng ký / Đăng nhập', 'Sign up / Sign in'),
+      heading: tr('Chào mừng đến với Diện Chẩn', 'Welcome to Dien Chan'),
       subtitle: _registering
-          ? 'Tạo tài khoản để lưu hồ sơ, nhật ký và tham gia cộng đồng.'
-          : 'Đăng nhập để đồng bộ dữ liệu trên mọi thiết bị.',
+          ? tr(
+              'Tạo tài khoản để lưu hồ sơ, nhật ký và tham gia cộng đồng.',
+              'Create an account to save your profile, journal, and join the community.',
+            )
+          : tr(
+              'Đăng nhập để đồng bộ dữ liệu trên mọi thiết bị.',
+              'Sign in to sync data across devices.',
+            ),
       children: [
         SegmentedButton<bool>(
-          segments: const [
-            ButtonSegment(value: false, label: Text('Đăng nhập')),
-            ButtonSegment(value: true, label: Text('Đăng ký')),
+          segments: [
+            ButtonSegment(
+              value: false,
+              label: Text(tr('Đăng nhập', 'Sign in')),
+            ),
+            ButtonSegment(
+              value: true,
+              label: Text(tr('Đăng ký', 'Sign up')),
+            ),
           ],
           selected: {_registering},
           showSelectedIcon: false,
@@ -479,8 +502,8 @@ class _AuthPageState extends State<_AuthPage> {
                     autofillHints: const [AutofillHints.name],
                     validator: _validateFullName,
                     decoration: _authInputDecoration(
-                      label: 'Họ và tên',
-                      hint: 'Nguyễn Văn An',
+                      label: tr('Họ và tên', 'Full name'),
+                      hint: tr('Nguyễn Văn An', 'Jane Doe'),
                       icon: Icons.person_outline_rounded,
                     ),
                   ),
@@ -494,14 +517,14 @@ class _AuthPageState extends State<_AuthPage> {
                   validator: _validateEmail,
                   decoration: _authInputDecoration(
                     label: 'Email',
-                    hint: 'tenban@gmail.com',
+                    hint: 'you@gmail.com',
                     icon: Icons.mail_outline_rounded,
                   ),
                 ),
                 const SizedBox(height: 14),
                 _PasswordField(
                   controller: _passwordController,
-                  label: 'Mật khẩu',
+                  label: tr('Mật khẩu', 'Password'),
                   newPassword: _registering,
                   validator: _registering ? _validateNewPassword : null,
                   onSubmitted: _registering ? null : _submit,
@@ -515,7 +538,10 @@ class _AuthPageState extends State<_AuthPage> {
                     autofillHints: const [AutofillHints.telephoneNumber],
                     validator: _validateOptionalPhone,
                     decoration: _authInputDecoration(
-                      label: 'Số điện thoại (không bắt buộc)',
+                      label: tr(
+                        'Số điện thoại (không bắt buộc)',
+                        'Phone (optional)',
+                      ),
                       hint: '0901 234 567',
                       icon: Icons.phone_outlined,
                     ),
@@ -548,47 +574,53 @@ class _AuthPageState extends State<_AuthPage> {
                         Navigator.of(context).pop(user);
                       }
                     },
-              child: const Text('Quên mật khẩu?'),
+              child: Text(tr('Quên mật khẩu?', 'Forgot password?')),
             ),
           )
         else
           const SizedBox(height: 18),
         _AuthSubmitButton(
           label: _busy
-              ? 'Đang xử lý...'
+              ? tr('Đang xử lý...', 'Working...')
               : _registering
-              ? 'Tạo tài khoản'
-              : 'Đăng nhập',
+              ? tr('Tạo tài khoản', 'Create account')
+              : tr('Đăng nhập', 'Sign in'),
           busy: _busy,
           onPressed: _submit,
         ),
         if (_appleSignInSupported) ...[
           const SizedBox(height: 16),
-          const Row(
+          Row(
             children: [
-              Expanded(child: Divider()),
+              const Expanded(child: Divider()),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 10),
-                child: Text('hoặc', style: TextStyle(color: Color(0xFF9A6654))),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: Text(
+                  tr('hoặc', 'or'),
+                  style: const TextStyle(color: Color(0xFF9A6654)),
+                ),
               ),
-              Expanded(child: Divider()),
+              const Expanded(child: Divider()),
             ],
           ),
           const SizedBox(height: 16),
           SizedBox(
             height: 50,
             child: SignInWithAppleButton(
-              text: 'Tiếp tục với Apple',
+              text: tr('Tiếp tục với Apple', 'Continue with Apple'),
               onPressed: _busy ? () {} : _signInWithApple,
               borderRadius: const BorderRadius.all(Radius.circular(14)),
             ),
           ),
         ],
         const SizedBox(height: 14),
-        const Text(
-          'Tài khoản và dữ liệu được lưu an toàn trên máy chủ, dùng chung trên mọi thiết bị bạn đăng nhập.',
+        Text(
+          tr(
+            'Tài khoản và dữ liệu được lưu an toàn trên máy chủ, dùng chung trên mọi thiết bị bạn đăng nhập.',
+            'Your account and data are stored securely on the server and sync across devices you sign in on.',
+          ),
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             color: Color(0xFF9A6654),
             fontSize: 12,
             height: 1.35,
@@ -599,9 +631,12 @@ class _AuthPageState extends State<_AuthPage> {
           alignment: WrapAlignment.center,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            const Text(
-              'Khi tiếp tục, bạn đồng ý với',
-              style: TextStyle(color: Color(0xFF9A6654), fontSize: 12),
+            Text(
+              tr(
+                'Khi tiếp tục, bạn đồng ý với',
+                'By continuing, you agree to the',
+              ),
+              style: const TextStyle(color: Color(0xFF9A6654), fontSize: 12),
             ),
             TextButton(
               style: TextButton.styleFrom(
@@ -611,11 +646,11 @@ class _AuthPageState extends State<_AuthPage> {
                 textStyle: const TextStyle(fontSize: 12),
               ),
               onPressed: () => _openExternal(context, _legalUri('/terms')),
-              child: const Text('Điều khoản'),
+              child: Text(tr('Điều khoản', 'Terms')),
             ),
-            const Text(
-              'và',
-              style: TextStyle(color: Color(0xFF9A6654), fontSize: 12),
+            Text(
+              tr('và', 'and'),
+              style: const TextStyle(color: Color(0xFF9A6654), fontSize: 12),
             ),
             TextButton(
               style: TextButton.styleFrom(
@@ -625,11 +660,14 @@ class _AuthPageState extends State<_AuthPage> {
                 textStyle: const TextStyle(fontSize: 12),
               ),
               onPressed: () => _openExternal(context, _legalUri('/privacy')),
-              child: const Text('Chính sách quyền riêng tư'),
+              child: Text(
+                tr('Chính sách quyền riêng tư', 'Privacy policy'),
+              ),
             ),
           ],
         ),
       ],
+    ),
     );
   }
 }
@@ -694,7 +732,14 @@ class _ForgotPasswordPageState extends State<_ForgotPasswordPage> {
       await _completeSignIn(result);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã đặt lại mật khẩu và đăng nhập.')),
+        SnackBar(
+          content: Text(
+            tr(
+              'Đã đặt lại mật khẩu và đăng nhập.',
+              'Password reset and signed in.',
+            ),
+          ),
+        ),
       );
       Navigator.of(context).pop(result.user);
     } catch (error) {
@@ -706,12 +751,20 @@ class _ForgotPasswordPageState extends State<_ForgotPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
-    return _AuthScaffold(
-      title: 'Quên mật khẩu',
-      heading: 'Đặt lại mật khẩu',
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) => _AuthScaffold(
+      title: tr('Quên mật khẩu', 'Forgot password'),
+      heading: tr('Đặt lại mật khẩu', 'Reset password'),
       subtitle: _codeSent
-          ? 'Nhập mã 6 số trong email và mật khẩu mới.'
-          : 'Nhập email đã đăng ký, chúng tôi sẽ gửi mã xác nhận.',
+          ? tr(
+              'Nhập mã 6 số trong email và mật khẩu mới.',
+              'Enter the 6-digit email code and a new password.',
+            )
+          : tr(
+              'Nhập email đã đăng ký, chúng tôi sẽ gửi mã xác nhận.',
+              'Enter your registered email and we will send a code.',
+            ),
       children: [
         Form(
           key: _formKey,
@@ -739,16 +792,16 @@ class _ForgotPasswordPageState extends State<_ForgotPasswordPage> {
                   validator: (value) =>
                       RegExp(r'^\d{6}$').hasMatch(value?.trim() ?? '')
                       ? null
-                      : 'Mã gồm 6 chữ số',
+                      : tr('Mã gồm 6 chữ số', 'Enter the 6-digit code'),
                   decoration: _authInputDecoration(
-                    label: 'Mã xác nhận',
+                    label: tr('Mã xác nhận', 'Verification code'),
                     icon: Icons.pin_outlined,
                   ),
                 ),
                 const SizedBox(height: 6),
                 _PasswordField(
                   controller: _passwordController,
-                  label: 'Mật khẩu mới',
+                  label: tr('Mật khẩu mới', 'New password'),
                   newPassword: true,
                   validator: _validateNewPassword,
                 ),
@@ -758,7 +811,9 @@ class _ForgotPasswordPageState extends State<_ForgotPasswordPage> {
         ),
         const SizedBox(height: 18),
         _AuthSubmitButton(
-          label: _codeSent ? 'Đặt lại mật khẩu' : 'Gửi mã xác nhận',
+          label: _codeSent
+              ? tr('Đặt lại mật khẩu', 'Reset password')
+              : tr('Gửi mã xác nhận', 'Send code'),
           icon: _codeSent ? Icons.lock_reset_rounded : Icons.send_rounded,
           busy: _busy,
           onPressed: _codeSent ? _reset : _sendCode,
@@ -766,9 +821,10 @@ class _ForgotPasswordPageState extends State<_ForgotPasswordPage> {
         if (_codeSent)
           TextButton(
             onPressed: _busy ? null : _sendCode,
-            child: const Text('Gửi lại mã'),
+            child: Text(tr('Gửi lại mã', 'Resend code')),
           ),
       ],
+    ),
     );
   }
 }
@@ -830,12 +886,24 @@ class _ProfileFormPageState extends State<_ProfileFormPage> {
 
   @override
   Widget build(BuildContext context) {
-    return _AuthScaffold(
-      title: widget.completing ? 'Hoàn thiện hồ sơ' : 'Chỉnh sửa hồ sơ',
-      heading: widget.completing ? 'Thêm vài thông tin' : 'Hồ sơ của bạn',
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) => _AuthScaffold(
+      title: widget.completing
+          ? tr('Hoàn thiện hồ sơ', 'Complete profile')
+          : tr('Chỉnh sửa hồ sơ', 'Edit profile'),
+      heading: widget.completing
+          ? tr('Thêm vài thông tin', 'Add a few details')
+          : tr('Hồ sơ của bạn', 'Your profile'),
       subtitle: widget.user.email.isEmpty
-          ? 'Tên và quốc gia sẽ hiển thị với cộng đồng.'
-          : 'Tài khoản: ${widget.user.email}',
+          ? tr(
+              'Tên và quốc gia sẽ hiển thị với cộng đồng.',
+              'Name and country are shown to the community.',
+            )
+          : tr(
+              'Tài khoản: ${widget.user.email}',
+              'Account: ${widget.user.email}',
+            ),
       children: [
         Form(
           key: _formKey,
@@ -848,7 +916,7 @@ class _ProfileFormPageState extends State<_ProfileFormPage> {
                 autofillHints: const [AutofillHints.name],
                 validator: _validateFullName,
                 decoration: _authInputDecoration(
-                  label: 'Họ và tên',
+                  label: tr('Họ và tên', 'Full name'),
                   icon: Icons.person_outline_rounded,
                 ),
               ),
@@ -859,7 +927,10 @@ class _ProfileFormPageState extends State<_ProfileFormPage> {
                 autofillHints: const [AutofillHints.telephoneNumber],
                 validator: _validateOptionalPhone,
                 decoration: _authInputDecoration(
-                  label: 'Số điện thoại (không bắt buộc)',
+                  label: tr(
+                    'Số điện thoại (không bắt buộc)',
+                    'Phone (optional)',
+                  ),
                   icon: Icons.phone_outlined,
                 ),
               ),
@@ -874,15 +945,16 @@ class _ProfileFormPageState extends State<_ProfileFormPage> {
         const SizedBox(height: 20),
         _AuthSubmitButton(
           label: _busy
-              ? 'Đang lưu...'
+              ? tr('Đang lưu...', 'Saving...')
               : widget.completing
-              ? 'Bắt đầu sử dụng'
-              : 'Lưu thay đổi',
+              ? tr('Bắt đầu sử dụng', 'Get started')
+              : tr('Lưu thay đổi', 'Save changes'),
           icon: Icons.check_rounded,
           busy: _busy,
           onPressed: _save,
         ),
       ],
+    ),
     );
   }
 }

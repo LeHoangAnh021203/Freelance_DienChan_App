@@ -4,13 +4,21 @@ const _hotlineDisplay = '0903.888.397';
 const _centerAddress = '16 Kỳ Con, Phường Cầu Kiệu, TP. Hồ Chí Minh';
 const _disclaimerAcceptedKey = 'medical_disclaimer_v1';
 
-const _medicalDisclaimer =
+const _medicalDisclaimerVi =
     'Nội dung trong ứng dụng (huyệt, đồ hình, phác đồ, hướng dẫn day ấn) chỉ '
     'nhằm mục đích tham khảo và học tập về phương pháp Diện Chẩn.\n\n'
     'Ứng dụng không phải thiết bị y tế, không chẩn đoán bệnh và không thay thế '
     'việc thăm khám, điều trị của bác sĩ. Không tự ý ngừng thuốc đang dùng.\n\n'
     'Nếu triệu chứng dữ dội, kéo dài hoặc có dấu hiệu nguy hiểm, hãy đến cơ sở '
     'y tế gần nhất.';
+
+const _medicalDisclaimerEn =
+    'Content in this app (points, diagrams, protocols, pressing guidance) is '
+    'for reference and learning about Dien Chan only.\n\n'
+    'This app is not a medical device, does not diagnose conditions, and does '
+    'not replace a doctor’s examination or treatment. Do not stop prescribed '
+    'medication on your own.\n\n'
+    'If symptoms are severe, persistent, or dangerous, seek nearby medical care.';
 
 /// Privacy policy, terms and account deletion pages are served by the API host.
 Uri _legalUri(String path) => Uri.parse('${_api.baseUrl}$path');
@@ -27,8 +35,11 @@ Future<void> _openExternal(BuildContext context, Uri uri) async {
       SnackBar(
         content: Text(
           uri.scheme == 'tel'
-              ? 'Không mở được trình gọi điện. Vui lòng gọi $_hotlineDisplay.'
-              : 'Không mở được liên kết.',
+              ? tr(
+                  'Không mở được trình gọi điện. Vui lòng gọi $_hotlineDisplay.',
+                  'Could not open the phone app. Please call $_hotlineDisplay.',
+                )
+              : tr('Không mở được liên kết.', 'Could not open the link.'),
         ),
       ),
     );
@@ -58,12 +69,14 @@ Future<void> _showMedicalDisclaimer(
         Icons.health_and_safety_outlined,
         color: Color(0xFFB55238),
       ),
-      title: const Text('Lưu ý sức khỏe'),
-      content: const SingleChildScrollView(child: Text(_medicalDisclaimer)),
+      title: Text(tr('Lưu ý sức khỏe', 'Health notice')),
+      content: SingleChildScrollView(
+        child: Text(tr(_medicalDisclaimerVi, _medicalDisclaimerEn)),
+      ),
       actions: [
         FilledButton(
           onPressed: () => Navigator.pop(dialogContext),
-          child: const Text('Tôi đã hiểu'),
+          child: Text(tr('Tôi đã hiểu', 'I understand')),
         ),
       ],
     ),
@@ -85,34 +98,49 @@ class _LegalLinksCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Column(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.health_and_safety_outlined),
-            title: const Text('Lưu ý sức khỏe'),
-            subtitle: const Text('Nội dung chỉ mang tính tham khảo'),
-            onTap: () => _showMedicalDisclaimer(context),
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) {
+        return Card(
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.health_and_safety_outlined),
+                title: Text(tr('Lưu ý sức khỏe', 'Health notice')),
+                subtitle: Text(
+                  tr(
+                    'Nội dung chỉ mang tính tham khảo',
+                    'Reference content only',
+                  ),
+                ),
+                onTap: () => _showMedicalDisclaimer(context),
+              ),
+              ListTile(
+                leading: const Icon(Icons.privacy_tip_outlined),
+                title: Text(tr('Chính sách quyền riêng tư', 'Privacy policy')),
+                trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+                onTap: () => _openExternal(context, _legalUri('/privacy')),
+              ),
+              ListTile(
+                leading: const Icon(Icons.description_outlined),
+                title: Text(tr('Điều khoản sử dụng', 'Terms of use')),
+                trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+                onTap: () => _openExternal(context, _legalUri('/terms')),
+              ),
+              ListTile(
+                leading: const Icon(Icons.call_outlined),
+                title: Text(
+                  tr(
+                    'Gọi hỗ trợ: $_hotlineDisplay',
+                    'Call support: $_hotlineDisplay',
+                  ),
+                ),
+                onTap: () => _callHotline(context),
+              ),
+            ],
           ),
-          ListTile(
-            leading: const Icon(Icons.privacy_tip_outlined),
-            title: const Text('Chính sách quyền riêng tư'),
-            trailing: const Icon(Icons.open_in_new_rounded, size: 18),
-            onTap: () => _openExternal(context, _legalUri('/privacy')),
-          ),
-          ListTile(
-            leading: const Icon(Icons.description_outlined),
-            title: const Text('Điều khoản sử dụng'),
-            trailing: const Icon(Icons.open_in_new_rounded, size: 18),
-            onTap: () => _openExternal(context, _legalUri('/terms')),
-          ),
-          ListTile(
-            leading: const Icon(Icons.call_outlined),
-            title: const Text('Gọi hỗ trợ: $_hotlineDisplay'),
-            onTap: () => _callHotline(context),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -214,9 +242,13 @@ void _showToolContactSheet(BuildContext context, String tool) {
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Dụng cụ được trung tâm cung cấp trực tiếp. Gọi hotline để được '
-              'tư vấn cách dùng, giá và đặt mua.',
+            Text(
+              tr(
+                'Dụng cụ được trung tâm cung cấp trực tiếp. Gọi hotline để được '
+                'tư vấn cách dùng, giá và đặt mua.',
+                'Tools are supplied by the center. Call the hotline for usage '
+                'tips, pricing, and orders.',
+              ),
             ),
             const SizedBox(height: 16),
             FilledButton.icon(
@@ -225,7 +257,9 @@ void _showToolContactSheet(BuildContext context, String tool) {
                 _callHotline(context);
               },
               icon: const Icon(Icons.call_rounded),
-              label: const Text('Gọi $_hotlineDisplay'),
+              label: Text(
+                tr('Gọi $_hotlineDisplay', 'Call $_hotlineDisplay'),
+              ),
             ),
           ],
         ),

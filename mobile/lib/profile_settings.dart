@@ -58,9 +58,14 @@ Future<void> _checkReminder() async {
     if (!await preferences.setString('settings_last_reminder', date)) return;
     _profileSettings.lastReminder = date;
     _appMessenger.currentState?.showSnackBar(
-      const SnackBar(
-        content: Text('Đến giờ tự chăm sóc bạn đã đặt. Mở phác đồ để bắt đầu.'),
-        duration: Duration(seconds: 12),
+      SnackBar(
+        content: Text(
+          tr(
+            'Đến giờ tự chăm sóc bạn đã đặt. Mở phác đồ để bắt đầu.',
+            'It is time for your self-care session. Open a protocol to begin.',
+          ),
+        ),
+        duration: const Duration(seconds: 12),
       ),
     );
   } catch (_) {
@@ -93,10 +98,14 @@ class _PrivacyPageState extends State<_PrivacyPage> {
     final result = await showDialog<({String current, String next})>(
       context: context,
       builder: (_) => _PasswordDialog(
-        title: user.hasPassword ? 'Đổi mật khẩu' : 'Tạo mật khẩu',
-        currentLabel: user.hasPassword ? 'Mật khẩu hiện tại' : null,
+        title: user.hasPassword
+            ? tr('Đổi mật khẩu', 'Change password')
+            : tr('Tạo mật khẩu', 'Create password'),
+        currentLabel: user.hasPassword
+            ? tr('Mật khẩu hiện tại', 'Current password')
+            : null,
         askNewPassword: true,
-        confirmLabel: 'Lưu',
+        confirmLabel: tr('Lưu', 'Save'),
       ),
     );
     if (result == null || !mounted) return;
@@ -109,9 +118,12 @@ class _PrivacyPageState extends State<_PrivacyPage> {
       await _refreshStats();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text(
-              'Đã lưu mật khẩu. Các thiết bị khác đã được đăng xuất.',
+              tr(
+                'Đã lưu mật khẩu. Các thiết bị khác đã được đăng xuất.',
+                'Password saved. Other devices were signed out.',
+              ),
             ),
           ),
         );
@@ -127,11 +139,15 @@ class _PrivacyPageState extends State<_PrivacyPage> {
     final result = await showDialog<({String current, String next})>(
       context: context,
       builder: (_) => _PasswordDialog(
-        title: 'Xóa tài khoản vĩnh viễn?',
-        message:
-            'Hồ sơ, ảnh đại diện, nhật ký, mục đã lưu, tin nhắn cộng đồng và đăng ký khóa học của bạn sẽ bị xóa khỏi máy chủ. Thao tác này không thể hoàn tác.',
-        currentLabel: user.hasPassword ? 'Nhập mật khẩu để xác nhận' : null,
-        confirmLabel: 'Xóa tài khoản',
+        title: tr('Xóa tài khoản vĩnh viễn?', 'Delete account permanently?'),
+        message: tr(
+          'Hồ sơ, ảnh đại diện, nhật ký, mục đã lưu, tin nhắn cộng đồng và đăng ký khóa học của bạn sẽ bị xóa khỏi máy chủ. Thao tác này không thể hoàn tác.',
+          'Your profile, avatar, journals, saved items, community messages, and course registrations will be removed from the server. This cannot be undone.',
+        ),
+        currentLabel: user.hasPassword
+            ? tr('Nhập mật khẩu để xác nhận', 'Enter password to confirm')
+            : null,
+        confirmLabel: tr('Xóa tài khoản', 'Delete account'),
         danger: true,
       ),
     );
@@ -145,7 +161,9 @@ class _PrivacyPageState extends State<_PrivacyPage> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Đã xóa tài khoản.')));
+      ).showSnackBar(
+        SnackBar(content: Text(tr('Đã xóa tài khoản.', 'Account deleted.'))),
+      );
       Navigator.pop(context);
     } catch (error) {
       if (mounted) _showApiError(context, error);
@@ -156,7 +174,7 @@ class _PrivacyPageState extends State<_PrivacyPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Bảo mật và riêng tư')),
+    appBar: AppBar(title: Text(tr('Bảo mật và riêng tư', 'Security & privacy'))),
     body: ValueListenableBuilder<ApiUser?>(
       valueListenable: _currentUserProfile,
       builder: (context, user, _) => ListView(
@@ -191,7 +209,11 @@ class _PrivacyPageState extends State<_PrivacyPage> {
                       userFacePhotoBytes.value = null;
                       userFaceAlignment.value = null;
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Đã xóa ảnh khuôn mặt.')),
+                        SnackBar(
+                          content: Text(
+                            tr('Đã xóa ảnh khuôn mặt.', 'Face photo removed.'),
+                          ),
+                        ),
                       );
                     },
               icon: const Icon(Icons.delete_outline),
@@ -217,8 +239,8 @@ class _PrivacyPageState extends State<_PrivacyPage> {
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.block_rounded),
-              title: const Text('Thành viên đã chặn'),
-              subtitle: const Text('Bỏ chặn để xem lại tin nhắn của họ'),
+              title: Text(tr('Thành viên đã chặn', 'Blocked members')),
+              subtitle: Text(tr('Bỏ chặn để xem lại tin nhắn của họ', 'Unblock to see their messages again')),
               onTap: () =>
                   _openSettingsPage(context, const _BlockedMembersPage()),
             ),
@@ -320,7 +342,7 @@ class _PasswordDialogState extends State<_PasswordDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Hủy'),
+          child: Text(tr('Hủy', 'Cancel')),
         ),
         FilledButton(
           style: widget.danger
@@ -361,7 +383,7 @@ class _BlockedMembersPageState extends State<_BlockedMembersPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Thành viên đã chặn')),
+    appBar: AppBar(title: Text(tr('Thành viên đã chặn', 'Blocked members'))),
     body: FutureBuilder<List<CommunityMember>>(
       future: _future,
       builder: (context, snapshot) {
@@ -384,7 +406,7 @@ class _BlockedMembersPageState extends State<_BlockedMembersPage> {
               subtitle: Text(member.country),
               trailing: TextButton(
                 onPressed: () => _unblock(member),
-                child: const Text('Bỏ chặn'),
+                child: Text(tr('Bỏ chặn', 'Unblock')),
               ),
             );
           },
@@ -408,7 +430,11 @@ class _ReminderSettingsPageState extends State<_ReminderSettingsPage> {
       await _profileSettings.saveReminder(enabled, minute);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã lưu cài đặt nhắc giờ.')),
+          SnackBar(
+            content: Text(
+              tr('Đã lưu cài đặt nhắc giờ.', 'Reminder settings saved.'),
+            ),
+          ),
         );
       }
     } catch (error) {
@@ -420,7 +446,7 @@ class _ReminderSettingsPageState extends State<_ReminderSettingsPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Cài đặt thông báo')),
+    appBar: AppBar(title: Text(tr('Cài đặt thông báo', 'Notification settings'))),
     body: ListenableBuilder(
       listenable: _profileSettings,
       builder: (context, _) {
@@ -436,14 +462,14 @@ class _ReminderSettingsPageState extends State<_ReminderSettingsPage> {
             ),
             const SizedBox(height: 16),
             SwitchListTile(
-              title: const Text('Nhắc tự chăm sóc hằng ngày'),
+              title: Text(tr('Nhắc tự chăm sóc hằng ngày', 'Daily self-care reminder')),
               value: _profileSettings.reminders,
               onChanged: _busy
                   ? null
                   : (value) => _save(value, _profileSettings.minute),
             ),
             ListTile(
-              title: const Text('Giờ nhắc'),
+              title: Text(tr('Giờ nhắc', 'Reminder time')),
               subtitle: Text(time.format(context)),
               trailing: const Icon(Icons.schedule),
               enabled: !_busy && _profileSettings.reminders,
@@ -469,7 +495,7 @@ class _ReminderSettingsPageState extends State<_ReminderSettingsPage> {
                       ),
                     ),
               icon: const Icon(Icons.notifications_active_outlined),
-              label: const Text('Thử thông báo'),
+              label: Text(tr('Thử thông báo', 'Test notification')),
             ),
           ],
         );
@@ -561,73 +587,118 @@ class _HelpPageState extends State<_HelpPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Trợ giúp và hỗ trợ')),
-    body: ListView(
+    appBar: AppBar(title: Text(tr('Trợ giúp và hỗ trợ', 'Help & support'))),
+    body: ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) => ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const ExpansionTile(
-          title: Text('Tôi có thể dùng app khi chưa đăng nhập?'),
+        ExpansionTile(
+          title: Text(
+            tr(
+              'Tôi có thể dùng app khi chưa đăng nhập?',
+              'Can I use the app without signing in?',
+            ),
+          ),
           children: [
             Padding(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Text(
-                'Bạn có thể xem trang chủ, tra cứu và đăng ký khóa học. Đăng nhập để chat cộng đồng, lưu nhật ký và mục yêu thích.',
+                tr(
+                  'Bạn có thể xem trang chủ, tra cứu và đăng ký khóa học. Đăng nhập để chat cộng đồng, lưu nhật ký và mục yêu thích.',
+                  'You can browse home, look up content, and register for courses. Sign in to chat, save journals, and keep favorites.',
+                ),
               ),
             ),
           ],
         ),
-        const ExpansionTile(
-          title: Text('Tôi quên mật khẩu thì làm sao?'),
+        ExpansionTile(
+          title: Text(
+            tr(
+              'Tôi quên mật khẩu thì làm sao?',
+              'What if I forget my password?',
+            ),
+          ),
           children: [
             Padding(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Text(
-                'Ở màn Đăng nhập, bấm "Quên mật khẩu?", nhập email để nhận mã 6 số rồi đặt mật khẩu mới.',
+                tr(
+                  'Ở màn Đăng nhập, bấm "Quên mật khẩu?", nhập email để nhận mã 6 số rồi đặt mật khẩu mới.',
+                  'On Sign in, tap "Forgot password?", enter your email for a 6-digit code, then set a new password.',
+                ),
               ),
             ),
           ],
         ),
-        const ExpansionTile(
-          title: Text('Làm sao thay đổi thông tin cá nhân?'),
+        ExpansionTile(
+          title: Text(
+            tr(
+              'Làm sao thay đổi thông tin cá nhân?',
+              'How do I update my personal info?',
+            ),
+          ),
           children: [
             Padding(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Text(
-                'Vào Hồ sơ → Chỉnh sửa hồ sơ, cập nhật thông tin rồi bấm Lưu thay đổi.',
+                tr(
+                  'Vào Hồ sơ → Chỉnh sửa hồ sơ, cập nhật thông tin rồi bấm Lưu thay đổi.',
+                  'Go to Profile → Edit profile, update your details, then tap Save changes.',
+                ),
               ),
             ),
           ],
         ),
-        const ExpansionTile(
-          title: Text('Vì sao tôi không nhận được nhắc giờ?'),
+        ExpansionTile(
+          title: Text(
+            tr(
+              'Vì sao tôi không nhận được nhắc giờ?',
+              'Why am I not getting reminders?',
+            ),
+          ),
           children: [
             Padding(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Text(
-                'Bật nhắc trong Hồ sơ → Thông báo và chọn giờ. Giữ app mở ở giờ đã chọn. Nhắc giờ tạm dừng khi đăng xuất hoặc đóng app.',
+                tr(
+                  'Bật nhắc trong Hồ sơ → Thông báo và chọn giờ. Giữ app mở ở giờ đã chọn. Nhắc giờ tạm dừng khi đăng xuất hoặc đóng app.',
+                  'Enable reminders in Profile → Notifications and pick a time. Keep the app open at that time. Reminders pause when you sign out or close the app.',
+                ),
               ),
             ),
           ],
         ),
-        const ExpansionTile(
-          title: Text('Dữ liệu của tôi được lưu ở đâu?'),
+        ExpansionTile(
+          title: Text(
+            tr(
+              'Dữ liệu của tôi được lưu ở đâu?',
+              'Where is my data stored?',
+            ),
+          ),
           children: [
             Padding(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Text(
-                'Hồ sơ, nhật ký, mục đã lưu và cài đặt được lưu trên máy chủ theo tài khoản, nên đăng nhập ở thiết bị khác vẫn thấy đủ. Bạn có thể xóa tài khoản trong Hồ sơ → Bảo mật và riêng tư.',
+                tr(
+                  'Hồ sơ, nhật ký, mục đã lưu và cài đặt được lưu trên máy chủ theo tài khoản, nên đăng nhập ở thiết bị khác vẫn thấy đủ. Bạn có thể xóa tài khoản trong Hồ sơ → Bảo mật và riêng tư.',
+                  'Profile, journals, saved items, and settings are stored on the server by account, so signing in on another device keeps them. You can delete your account in Profile → Security & privacy.',
+                ),
               ),
             ),
           ],
         ),
         const SizedBox(height: 20),
-        const Text(
-          'Nội dung cần hỗ trợ',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        Text(
+          tr('Nội dung cần hỗ trợ', 'Support request'),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Gửi yêu cầu trực tiếp tại đây, hoặc liên hệ $_hotlineDisplay, Facebook "Buiminhtam dien chan".',
+        Text(
+          tr(
+            'Gửi yêu cầu trực tiếp tại đây, hoặc liên hệ $_hotlineDisplay, Facebook "Buiminhtam dien chan".',
+            'Send a request here, or contact $_hotlineDisplay / Facebook "Buiminhtam dien chan".',
+          ),
         ),
         const SizedBox(height: 12),
         Form(
@@ -637,12 +708,18 @@ class _HelpPageState extends State<_HelpPage> {
               if (_currentUserProfile.value == null) ...[
                 TextFormField(
                   controller: _contactController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email hoặc số điện thoại liên hệ',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: tr(
+                      'Email hoặc số điện thoại liên hệ',
+                      'Email or phone',
+                    ),
+                    border: const OutlineInputBorder(),
                   ),
                   validator: (value) => (value?.trim().length ?? 0) < 5
-                      ? 'Vui lòng nhập email hoặc số điện thoại'
+                      ? tr(
+                          'Vui lòng nhập email hoặc số điện thoại',
+                          'Please enter an email or phone number',
+                        )
                       : null,
                 ),
                 const SizedBox(height: 12),
@@ -651,14 +728,19 @@ class _HelpPageState extends State<_HelpPage> {
                 controller: _controller,
                 maxLines: 5,
                 maxLength: 2000,
-                decoration: const InputDecoration(
-                  labelText: 'Mô tả vấn đề',
-                  hintText:
-                      'Bạn gặp vấn đề ở màn hình nào? Các bước thực hiện...',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: tr('Mô tả vấn đề', 'Describe the issue'),
+                  hintText: tr(
+                    'Bạn gặp vấn đề ở màn hình nào? Các bước thực hiện...',
+                    'Which screen? What steps did you take...',
+                  ),
+                  border: const OutlineInputBorder(),
                 ),
                 validator: (value) => (value?.trim().length ?? 0) < 10
-                    ? 'Vui lòng mô tả ít nhất 10 ký tự'
+                    ? tr(
+                        'Vui lòng mô tả ít nhất 10 ký tự',
+                        'Please write at least 10 characters',
+                      )
                     : null,
               ),
             ],
@@ -667,11 +749,19 @@ class _HelpPageState extends State<_HelpPage> {
         FilledButton.icon(
           onPressed: _sending ? null : _send,
           icon: const Icon(Icons.send_rounded),
-          label: Text(_sending ? 'Đang gửi...' : 'Gửi đến bộ phận hỗ trợ'),
+          label: Text(
+            _sending
+                ? tr('Đang gửi...', 'Sending...')
+                : tr('Gửi đến bộ phận hỗ trợ', 'Send to support'),
+          ),
         ),
         TextButton(
           onPressed: _busy ? null : _saveDraft,
-          child: Text(_busy ? 'Đang lưu...' : 'Lưu bản nháp'),
+          child: Text(
+            _busy
+                ? tr('Đang lưu...', 'Saving...')
+                : tr('Lưu bản nháp', 'Save draft'),
+          ),
         ),
         OutlinedButton.icon(
           onPressed: () async {
@@ -682,15 +772,25 @@ class _HelpPageState extends State<_HelpPage> {
               );
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Đã sao chép nội dung hỗ trợ.')),
+                  SnackBar(
+                    content: Text(
+                      tr(
+                        'Đã sao chép nội dung hỗ trợ.',
+                        'Support content copied.',
+                      ),
+                    ),
+                  ),
                 );
               }
             } catch (_) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
+                  SnackBar(
                     content: Text(
-                      'Không sao chép được. Bạn có thể chọn và sao chép nội dung trực tiếp.',
+                      tr(
+                        'Không sao chép được. Bạn có thể chọn và sao chép nội dung trực tiếp.',
+                        'Could not copy. You can select and copy the text yourself.',
+                      ),
                     ),
                   ),
                 );
@@ -698,11 +798,12 @@ class _HelpPageState extends State<_HelpPage> {
             }
           },
           icon: const Icon(Icons.copy),
-          label: const Text('Sao chép nội dung'),
+          label: Text(tr('Sao chép nội dung', 'Copy content')),
         ),
         const SizedBox(height: 20),
         const _LegalLinksCard(),
       ],
+    ),
     ),
   );
 }
@@ -738,11 +839,11 @@ class _ProfileAvatarEditorState extends State<_ProfileAvatarEditor> {
             if (_profileAvatar.value != null)
               ListTile(
                 leading: const Icon(Icons.delete_outline),
-                title: const Text('Xóa ảnh đại diện'),
+                title: Text(tr('Xóa ảnh đại diện', 'Remove profile photo')),
                 onTap: () => Navigator.pop(context, 'remove'),
               ),
             ListTile(
-              title: const Text('Hủy'),
+              title: Text(tr('Hủy', 'Cancel')),
               onTap: () => Navigator.pop(context),
             ),
           ],
@@ -791,7 +892,7 @@ class _ProfileAvatarEditorState extends State<_ProfileAvatarEditor> {
             action == 'remove' ? 'Xóa ảnh đại diện?' : 'Xem trước ảnh đại diện',
           ),
           content: action == 'remove'
-              ? const Text('Ảnh đại diện sẽ trở về biểu tượng mặc định.')
+              ? Text(tr('Ảnh đại diện sẽ trở về biểu tượng mặc định.', 'Your photo will return to the default icon.'))
               : SizedBox(
                   height: 180,
                   width: 180,
@@ -809,7 +910,7 @@ class _ProfileAvatarEditorState extends State<_ProfileAvatarEditor> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Hủy'),
+              child: Text(tr('Hủy', 'Cancel')),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
@@ -911,7 +1012,7 @@ Future<bool> _showCommunityMember(
   final action = await showDialog<String>(
     context: context,
     builder: (context) => AlertDialog(
-      title: const Text('Thông tin thành viên'),
+      title: Text(tr('Thông tin thành viên', 'Member info')),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -963,11 +1064,11 @@ Future<bool> _showCommunityMember(
             style: TextButton.styleFrom(
               foregroundColor: const Color(0xFFB91C1C),
             ),
-            child: const Text('Chặn'),
+            child: Text(tr('Chặn', 'Block')),
           ),
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Đóng'),
+          child: Text(tr('Đóng', 'Close')),
         ),
       ],
     ),
@@ -983,11 +1084,11 @@ Future<bool> _showCommunityMember(
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('Hủy'),
+          child: Text(tr('Hủy', 'Cancel')),
         ),
         FilledButton(
           onPressed: () => Navigator.pop(context, true),
-          child: const Text('Chặn'),
+          child: Text(tr('Chặn', 'Block')),
         ),
       ],
     ),
@@ -998,7 +1099,16 @@ Future<bool> _showCommunityMember(
     if (context.mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Đã chặn ${member.fullName}.')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              'Đã chặn ${member.fullName}.',
+              'Blocked ${member.fullName}.',
+            ),
+          ),
+        ),
+      );
     }
     return true;
   } catch (error) {

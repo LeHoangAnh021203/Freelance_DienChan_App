@@ -202,24 +202,31 @@ class _FinflowCommunityTabState extends State<_FinflowCommunityTab> {
     final accepted = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Quy tắc cộng đồng'),
-        content: const SingleChildScrollView(
+        title: Text(tr('Quy tắc cộng đồng', 'Community guidelines')),
+        content: SingleChildScrollView(
           child: Text(
-            '• Tôn trọng mọi thành viên, không dùng ngôn từ xúc phạm, quấy rối hay phân biệt.\n'
-            '• Không quảng cáo, spam hoặc chia sẻ nội dung phản cảm.\n'
-            '• Thông tin sức khỏe chỉ mang tính tham khảo, không thay thế chẩn đoán của bác sĩ.\n'
-            '• Tin nhắn vi phạm sẽ bị ẩn; tài khoản vi phạm nhiều lần có thể bị khóa.\n\n'
-            'Bạn có thể báo cáo tin nhắn hoặc chặn thành viên bằng cách nhấn giữ vào tin nhắn.',
+            tr(
+              '• Tôn trọng mọi thành viên, không dùng ngôn từ xúc phạm, quấy rối hay phân biệt.\n'
+              '• Không quảng cáo, spam hoặc chia sẻ nội dung phản cảm.\n'
+              '• Thông tin sức khỏe chỉ mang tính tham khảo, không thay thế chẩn đoán của bác sĩ.\n'
+              '• Tin nhắn vi phạm sẽ bị ẩn; tài khoản vi phạm nhiều lần có thể bị khóa.\n\n'
+              'Bạn có thể báo cáo tin nhắn hoặc chặn thành viên bằng cách nhấn giữ vào tin nhắn.',
+              '• Respect every member — no abuse, harassment, or discrimination.\n'
+              '• No ads, spam, or offensive content.\n'
+              '• Health info is for reference only and does not replace a doctor.\n'
+              '• Violating messages may be hidden; repeat offenders can be banned.\n\n'
+              'Long-press a message to report it or block a member.',
+            ),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Để sau'),
+            child: Text(tr('Để sau', 'Later')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Tôi đồng ý'),
+            child: Text(tr('Tôi đồng ý', 'I agree')),
           ),
         ],
       ),
@@ -275,19 +282,19 @@ class _FinflowCommunityTabState extends State<_FinflowCommunityTab> {
           children: [
             ListTile(
               leading: const Icon(Icons.copy_rounded),
-              title: const Text('Sao chép'),
+              title: Text(tr('Sao chép', 'Copy')),
               onTap: () => Navigator.pop(context, 'copy'),
             ),
             if (message.isMine)
               ListTile(
                 leading: const Icon(Icons.delete_outline),
-                title: const Text('Xóa tin nhắn'),
+                title: Text(tr('Xóa tin nhắn', 'Delete message')),
                 onTap: () => Navigator.pop(context, 'delete'),
               )
             else ...[
               ListTile(
                 leading: const Icon(Icons.flag_outlined),
-                title: const Text('Báo cáo tin nhắn'),
+                title: Text(tr('Báo cáo tin nhắn', 'Report message')),
                 onTap: () => Navigator.pop(context, 'report'),
               ),
               ListTile(
@@ -323,17 +330,20 @@ class _FinflowCommunityTabState extends State<_FinflowCommunityTab> {
   }
 
   Future<void> _report(ChatMessage message) async {
-    const reasons = [
-      'Spam hoặc quảng cáo',
-      'Ngôn từ xúc phạm, quấy rối',
-      'Thông tin sức khỏe sai lệch',
-      'Nội dung phản cảm',
-      'Lý do khác',
+    final reasons = [
+      tr('Spam hoặc quảng cáo', 'Spam or advertising'),
+      tr('Ngôn từ xúc phạm, quấy rối', 'Abusive or harassing language'),
+      tr(
+        'Thông tin sức khỏe sai lệch',
+        'Misleading health information',
+      ),
+      tr('Nội dung phản cảm', 'Offensive content'),
+      tr('Lý do khác', 'Other reason'),
     ];
     final reason = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
-        title: const Text('Báo cáo tin nhắn'),
+        title: Text(tr('Báo cáo tin nhắn', 'Report message')),
         children: reasons
             .map(
               (reason) => SimpleDialogOption(
@@ -350,9 +360,12 @@ class _FinflowCommunityTabState extends State<_FinflowCommunityTab> {
       if (!mounted) return;
       setState(() => _messages.removeWhere((item) => item.id == message.id));
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Cảm ơn bạn. Tin nhắn đã được ẩn và gửi tới quản trị viên.',
+            tr(
+              'Cảm ơn bạn. Tin nhắn đã được ẩn và gửi tới quản trị viên.',
+              'Thanks. The message was hidden and sent to admins.',
+            ),
           ),
         ),
       );
@@ -363,7 +376,9 @@ class _FinflowCommunityTabState extends State<_FinflowCommunityTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) => Column(
       key: const ValueKey('finflow-community'),
       children: [
         Container(
@@ -395,22 +410,25 @@ class _FinflowCommunityTabState extends State<_FinflowCommunityTab> {
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Chat cộng đồng',
-                      style: TextStyle(
+                      tr('Chat cộng đồng', 'Community chat'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w900,
                         fontSize: 18,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    const SizedBox(height: 2),
                     Text(
-                      'Mở cho tất cả người dùng',
-                      style: TextStyle(
+                      tr(
+                        'Mở cho tất cả người dùng',
+                        'Open to all users',
+                      ),
+                      style: const TextStyle(
                         color: Color(0xFFD9CEC5),
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
@@ -490,11 +508,14 @@ class _FinflowCommunityTabState extends State<_FinflowCommunityTab> {
                     maxLength: 1000,
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _sendMessage(),
-                    decoration: const InputDecoration(
-                      hintText: 'Nhắn tin vào cộng đồng...',
+                    decoration: InputDecoration(
+                      hintText: tr(
+                        'Nhắn tin vào cộng đồng...',
+                        'Message the community...',
+                      ),
                       border: InputBorder.none,
                       counterText: '',
-                      contentPadding: EdgeInsets.symmetric(
+                      contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,
                         vertical: 10,
                       ),
@@ -531,6 +552,7 @@ class _FinflowCommunityTabState extends State<_FinflowCommunityTab> {
           ),
         ),
       ],
+    ),
     );
   }
 
@@ -545,18 +567,21 @@ class _FinflowCommunityTabState extends State<_FinflowCommunityTab> {
             children: [
               Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              OutlinedButton(onPressed: _load, child: const Text('Thử lại')),
+              OutlinedButton(onPressed: _load, child: Text(tr('Thử lại', 'Retry'))),
             ],
           ),
         ),
       );
     }
     if (_messages.isEmpty) {
-      return const Center(
+      return Center(
         child: Padding(
-          padding: EdgeInsets.all(24),
+          padding: const EdgeInsets.all(24),
           child: Text(
-            'Chưa có tin nhắn nào. Hãy gửi lời chào đầu tiên tới cộng đồng!',
+            tr(
+              'Chưa có tin nhắn nào. Hãy gửi lời chào đầu tiên tới cộng đồng!',
+              'No messages yet. Say hello to the community!',
+            ),
             textAlign: TextAlign.center,
           ),
         ),

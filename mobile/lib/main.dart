@@ -50,16 +50,19 @@ class MultiDemoApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      scaffoldMessengerKey: _appMessenger,
-      debugShowCheckedModeBanner: false,
-      title: 'Sổ tay điện tử Diện Chẩn',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: finflowPreset.scheme,
-        scaffoldBackgroundColor: finflowPreset.background,
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) => MaterialApp(
+        scaffoldMessengerKey: _appMessenger,
+        debugShowCheckedModeBanner: false,
+        title: tr('Sổ tay điện tử Diện Chẩn', 'Dien Chan Handbook'),
+        theme: ThemeData(
+          useMaterial3: true,
+          colorScheme: finflowPreset.scheme,
+          scaffoldBackgroundColor: finflowPreset.background,
+        ),
+        home: const _AuthGate(),
       ),
-      home: const _AuthGate(),
     );
   }
 }
@@ -592,7 +595,14 @@ class _FaceCameraPageState extends State<_FaceCameraPage>
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Không chụp được ảnh. Vui lòng thử lại.')),
+        SnackBar(
+          content: Text(
+            tr(
+              'Không chụp được ảnh. Vui lòng thử lại.',
+              'Could not capture photo. Please try again.',
+            ),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _takingPhoto = false);
@@ -712,7 +722,7 @@ class _FaceCameraPageState extends State<_FaceCameraPage>
               top: 8,
               left: 8,
               child: IconButton.filledTonal(
-                tooltip: 'Đóng',
+                tooltip: tr('Đóng', 'Close'),
                 onPressed: () => Navigator.pop(context),
                 icon: const Icon(Icons.close_rounded),
               ),
@@ -724,8 +734,14 @@ class _FaceCameraPageState extends State<_FaceCameraPage>
               child: IgnorePointer(
                 child: Text(
                   _capturedBytes == null
-                      ? 'Đưa khuôn mặt vào giữa khung'
-                      : 'Kiểm tra mắt, mũi và cằm nằm đúng đường căn',
+                      ? tr(
+                          'Đưa khuôn mặt vào giữa khung',
+                          'Center your face in the frame',
+                        )
+                      : tr(
+                          'Kiểm tra mắt, mũi và cằm nằm đúng đường căn',
+                          'Check eyes, nose, and chin on the guide lines',
+                        ),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,
@@ -744,10 +760,13 @@ class _FaceCameraPageState extends State<_FaceCameraPage>
                   ? Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          'Nhìn thẳng · giữ máy ngang tầm mắt · đủ ánh sáng',
+                        Text(
+                          tr(
+                            'Nhìn thẳng · giữ máy ngang tầm mắt · đủ ánh sáng',
+                            'Look straight · hold phone at eye level · good light',
+                          ),
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
                             shadows: [
@@ -831,9 +850,15 @@ class _FaceCameraPageState extends State<_FaceCameraPage>
                               Expanded(
                                 child: Text(
                                   _analyzing
-                                      ? 'Đang kiểm tra 478 điểm khuôn mặt...'
-                                      : (_alignment?.message ??
-                                            'Không thể kiểm tra khuôn mặt.'),
+                                      ? tr(
+                                          'Đang kiểm tra 478 điểm khuôn mặt...',
+                                          'Checking 478 face landmarks...',
+                                        )
+                                      : (_alignment?.localizedMessage ??
+                                            tr(
+                                              'Không thể kiểm tra khuôn mặt.',
+                                              'Could not check the face.',
+                                            )),
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w700,
@@ -856,7 +881,7 @@ class _FaceCameraPageState extends State<_FaceCameraPage>
                                   minimumSize: const Size.fromHeight(52),
                                 ),
                                 icon: const Icon(Icons.refresh_rounded),
-                                label: const Text('Chụp lại'),
+                                label: Text(tr('Chụp lại', 'Retake')),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -876,7 +901,7 @@ class _FaceCameraPageState extends State<_FaceCameraPage>
                                   minimumSize: const Size.fromHeight(52),
                                 ),
                                 icon: const Icon(Icons.check_rounded),
-                                label: const Text('Dùng ảnh'),
+                                label: Text(tr('Dùng ảnh', 'Use photo')),
                               ),
                             ),
                           ],
@@ -922,7 +947,7 @@ class _CameraErrorState extends StatelessWidget {
             FilledButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Thử lại'),
+              label: Text(tr('Thử lại', 'Retry')),
             ),
           ],
         ),
@@ -1007,14 +1032,17 @@ class _QrCommunitySheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Quét mã QR',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+            Text(
+              tr('Quét mã QR', 'Scan QR code'),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Dùng để thêm bạn bè hoặc tham gia cộng đồng Diện Chẩn.',
-              style: TextStyle(color: Color(0xFF6E776F)),
+            Text(
+              tr(
+                'Dùng để thêm bạn bè hoặc tham gia cộng đồng Diện Chẩn.',
+                'Add friends or join the Dien Chan community.',
+              ),
+              style: const TextStyle(color: Color(0xFF6E776F)),
             ),
             const SizedBox(height: 12),
             ListTile(
@@ -1023,12 +1051,24 @@ class _QrCommunitySheet extends StatelessWidget {
               ),
               tileColor: const Color(0xFFF6FAF4),
               leading: const Icon(Icons.person_add_alt_1_rounded),
-              title: const Text('Quét để thêm bạn bè'),
-              subtitle: const Text('Kết nối nhanh bằng mã cá nhân'),
+              title: Text(tr('Quét để thêm bạn bè', 'Scan to add friends')),
+              subtitle: Text(
+                tr(
+                  'Kết nối nhanh bằng mã cá nhân',
+                  'Connect quickly with a personal code',
+                ),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(parentContext).showSnackBar(
-                  const SnackBar(content: Text('Đã chọn: Quét để thêm bạn bè')),
+                  SnackBar(
+                    content: Text(
+                      tr(
+                        'Đã chọn: Quét để thêm bạn bè',
+                        'Selected: Scan to add friends',
+                      ),
+                    ),
+                  ),
                 );
               },
             ),
@@ -1039,13 +1079,25 @@ class _QrCommunitySheet extends StatelessWidget {
               ),
               tileColor: const Color(0xFFF6FAF4),
               leading: const Icon(Icons.groups_2_outlined),
-              title: const Text('Quét để tham gia cộng đồng'),
-              subtitle: const Text('Vào nhóm chia sẻ theo mã mời'),
+              title: Text(
+                tr('Quét để tham gia cộng đồng', 'Scan to join community'),
+              ),
+              subtitle: Text(
+                tr(
+                  'Vào nhóm chia sẻ theo mã mời',
+                  'Join a group with an invite code',
+                ),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(parentContext).showSnackBar(
-                  const SnackBar(
-                    content: Text('Đã chọn: Quét để tham gia cộng đồng'),
+                  SnackBar(
+                    content: Text(
+                      tr(
+                        'Đã chọn: Quét để tham gia cộng đồng',
+                        'Selected: Scan to join community',
+                      ),
+                    ),
                   ),
                 );
               },
@@ -3146,20 +3198,26 @@ class _HomeBannerCarousel extends StatefulWidget {
 class _HomeBannerCarouselState extends State<_HomeBannerCarousel> {
   static const _banners = [
     (
-      title: 'Khóa 48 · Offline',
-      subtitle: 'Khai giảng 20/9 · 19:00–21:00',
+      titleVi: 'Khóa 48 · Offline',
+      titleEn: 'Course 48 · Offline',
+      subtitleVi: 'Khai giảng 20/9 · 19:00–21:00',
+      subtitleEn: 'Starts 20/9 · 19:00–21:00',
       imageAsset: 'assets/images/course_poster.jpg',
       target: 'course',
     ),
     (
-      title: 'Lớp học thực hành',
-      subtitle: 'Cộng đồng học viên Diện Chẩn',
+      titleVi: 'Lớp học thực hành',
+      titleEn: 'Hands-on class',
+      subtitleVi: 'Cộng đồng học viên Diện Chẩn',
+      subtitleEn: 'Dien Chan student community',
       imageAsset: 'assets/images/course_classroom.jpg',
       target: 'community',
     ),
     (
-      title: 'Thầy Bùi Minh Tâm',
-      subtitle: 'Chứng chỉ Massage Therapy · VCMT',
+      titleVi: 'Thầy Bùi Minh Tâm',
+      titleEn: 'Master Bui Minh Tam',
+      subtitleVi: 'Chứng chỉ Massage Therapy · VCMT',
+      subtitleEn: 'Massage Therapy certificate · VCMT',
       imageAsset: 'assets/images/cert_bui_minh_tam.jpg',
       target: 'teacher',
     ),
@@ -3213,7 +3271,9 @@ class _HomeBannerCarouselState extends State<_HomeBannerCarousel> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) => Column(
       children: [
         SizedBox(
           height: 168,
@@ -3223,6 +3283,7 @@ class _HomeBannerCarouselState extends State<_HomeBannerCarousel> {
             onPageChanged: (value) => setState(() => _index = value),
             itemBuilder: (context, i) {
               final banner = _banners[i];
+              final english = language == AppLanguage.en;
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: Material(
@@ -3242,6 +3303,64 @@ class _HomeBannerCarouselState extends State<_HomeBannerCarousel> {
                                 ? const Alignment(0.2, 0.05)
                                 : Alignment.center,
                           ),
+                          // Course poster has Vietnamese copy baked into the JPG —
+                          // cover that panel when English is active.
+                          if (i == 0 && english)
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              bottom: 8,
+                              width: 168,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.95),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: const Color(0xFFB42318),
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: const Padding(
+                                  padding: EdgeInsets.fromLTRB(10, 8, 10, 8),
+                                  child: DefaultTextStyle(
+                                    style: TextStyle(
+                                      color: Color(0xFF222222),
+                                      fontSize: 10.5,
+                                      height: 1.25,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'COURSE 48 · OFFLINE',
+                                          style: TextStyle(
+                                            color: Color(0xFFB42318),
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                        SizedBox(height: 6),
+                                        Text('Start date: 20/9'),
+                                        SizedBox(height: 3),
+                                        Text('Schedule: Mon–Sun'),
+                                        SizedBox(height: 3),
+                                        Text('Hours: 19:00 – 21:00'),
+                                        SizedBox(height: 3),
+                                        Text(
+                                          '16 Ky Con, Cau Kieu Ward',
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        SizedBox(height: 3),
+                                        Text('Tuition: 7 million VND'),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           const DecoratedBox(
                             decoration: BoxDecoration(
                               gradient: LinearGradient(
@@ -3253,13 +3372,18 @@ class _HomeBannerCarouselState extends State<_HomeBannerCarousel> {
                             ),
                           ),
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                            padding: EdgeInsets.fromLTRB(
+                              14,
+                              12,
+                              english && i == 0 ? 184 : 14,
+                              12,
+                            ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
                                 Text(
-                                  banner.title,
+                                  tr(banner.titleVi, banner.titleEn),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
@@ -3270,7 +3394,7 @@ class _HomeBannerCarouselState extends State<_HomeBannerCarousel> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  banner.subtitle,
+                                  tr(banner.subtitleVi, banner.subtitleEn),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
@@ -3310,6 +3434,7 @@ class _HomeBannerCarouselState extends State<_HomeBannerCarousel> {
           }),
         ),
       ],
+    ),
     );
   }
 }
@@ -3318,17 +3443,20 @@ void _openCommunityPage(BuildContext context) {
   Navigator.push(
     context,
     MaterialPageRoute(
-      builder: (_) => Scaffold(
-        backgroundColor: finflowPreset.background,
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF2C1A12),
-          title: const Text(
-            'Kết nối',
-            style: TextStyle(fontWeight: FontWeight.w800),
+      builder: (_) => ValueListenableBuilder<AppLanguage>(
+        valueListenable: appLanguage,
+        builder: (context, language, _) => Scaffold(
+          backgroundColor: finflowPreset.background,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF2C1A12),
+            title: Text(
+              tr('Kết nối', 'Connect'),
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
           ),
+          body: CommunityTab(preset: finflowPreset),
         ),
-        body: CommunityTab(preset: finflowPreset),
       ),
     ),
   );
@@ -4104,7 +4232,9 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
                             ),
                           ),
                           child: Text(
-                            buffer.isEmpty ? 'Nhập số huyệt...' : buffer,
+                            buffer.isEmpty
+                                ? tr('Nhập số huyệt...', 'Enter point number...')
+                                : buffer,
                             style: TextStyle(
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
@@ -4180,7 +4310,7 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
                                   foregroundColor: _accent,
                                   side: const BorderSide(color: _accent),
                                 ),
-                                child: const Text('Đóng'),
+                                child: Text(tr('Đóng', 'Close')),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -4193,7 +4323,7 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
                                 style: FilledButton.styleFrom(
                                   backgroundColor: _accent,
                                 ),
-                                child: const Text('Tìm'),
+                                child: Text(tr('Tìm', 'Find')),
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -4205,7 +4335,7 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
                                   foregroundColor: _accent,
                                   side: const BorderSide(color: _accent),
                                 ),
-                                child: const Text('Xóa'),
+                                child: Text(tr('Xóa', 'Clear')),
                               ),
                             ),
                           ],
@@ -4230,12 +4360,21 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
 
   String get _focusedCodeLabel {
     final code = _focusedCode;
-    return code == null ? 'Chọn một huyệt trước' : 'Huyệt $code';
+    return code == null
+        ? tr('Chọn một huyệt trước', 'Select a point first')
+        : tr('Huyệt $code', 'Point $code');
   }
 
   void _askToPickPoint() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Hãy chọn một huyệt trên bản đồ trước.')),
+      SnackBar(
+        content: Text(
+          tr(
+            'Hãy chọn một huyệt trên bản đồ trước.',
+            'Select a point on the map first.',
+          ),
+        ),
+      ),
     );
   }
 
@@ -4253,15 +4392,23 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Thêm...',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+              Text(
+                tr('Thêm...', 'More...'),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               const SizedBox(height: 10),
               ListTile(
                 leading: const Icon(Icons.list_alt_rounded, color: _accent),
-                title: const Text('Xem tất cả huyệt'),
-                subtitle: Text('${_points.length} huyệt trên gương mặt'),
+                title: Text(tr('Xem tất cả huyệt', 'View all points')),
+                subtitle: Text(
+                  tr(
+                    '${_points.length} huyệt trên gương mặt',
+                    '${_points.length} points on the face',
+                  ),
+                ),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   _showAllOnFace();
@@ -4272,7 +4419,7 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
                   Icons.bookmark_add_outlined,
                   color: _accent,
                 ),
-                title: const Text('Thêm vào yêu thích'),
+                title: Text(tr('Thêm vào yêu thích', 'Add to favorites')),
                 subtitle: Text(_focusedCodeLabel),
                 onTap: () {
                   Navigator.pop(sheetContext);
@@ -4282,34 +4429,42 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
                     context,
                     targetType: 'acupoint',
                     targetId: code,
-                    title: 'Huyệt $code',
+                    title: tr('Huyệt $code', 'Point $code'),
                   );
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.note_add_outlined, color: _accent),
-                title: const Text('Thêm ghi chú huyệt'),
-                subtitle: const Text('Lưu vào nhật ký cá nhân'),
+                title: Text(tr('Thêm ghi chú huyệt', 'Add point note')),
+                subtitle: Text(
+                  tr('Lưu vào nhật ký cá nhân', 'Save to personal journal'),
+                ),
                 onTap: () async {
                   Navigator.pop(sheetContext);
                   final code = _focusedCode;
                   if (code == null) return _askToPickPoint();
                   final entry = await _showJournalEditor(
                     context,
-                    initialTitle: 'Day huyệt $code',
+                    initialTitle: tr('Day huyệt $code', 'Press point $code'),
                     relatedType: 'acupoint',
                     relatedId: code,
                   );
                   if (entry != null && mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Đã lưu vào nhật ký.')),
+                      SnackBar(
+                        content: Text(
+                          tr('Đã lưu vào nhật ký.', 'Saved to journal.'),
+                        ),
+                      ),
                     );
                   }
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.assignment_add, color: _accent),
-                title: const Text('Thêm vào phác đồ cá nhân'),
+                title: Text(
+                  tr('Thêm vào phác đồ cá nhân', 'Add to personal protocol'),
+                ),
                 subtitle: Text(_focusedCodeLabel),
                 onTap: () {
                   Navigator.pop(sheetContext);
@@ -4319,7 +4474,7 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
                     context,
                     targetType: 'protocol',
                     targetId: code,
-                    title: 'Huyệt $code',
+                    title: tr('Huyệt $code', 'Point $code'),
                   );
                 },
               ),
@@ -4442,7 +4597,10 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
                                   color: Colors.white.withValues(alpha: 0.92),
                                   borderRadius: BorderRadius.circular(10),
                                   child: IconButton(
-                                    tooltip: 'Về vị trí ban đầu',
+                                    tooltip: tr(
+                                      'Về vị trí ban đầu',
+                                      'Reset view',
+                                    ),
                                     onPressed: () => _faceTransform.value =
                                         Matrix4.identity(),
                                     icon: const Icon(Icons.center_focus_strong),
@@ -4463,14 +4621,14 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
                                         userFaceAlignment.value = null;
                                         setState(() {});
                                       },
-                                      child: const Padding(
-                                        padding: EdgeInsets.symmetric(
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
                                           horizontal: 8,
                                           vertical: 6,
                                         ),
                                         child: Text(
-                                          'Ảnh mẫu',
-                                          style: TextStyle(
+                                          tr('Ảnh mẫu', 'Sample chart'),
+                                          style: const TextStyle(
                                             fontSize: 11,
                                             fontWeight: FontWeight.w700,
                                             color: Color(0xFFA65B38),
@@ -4494,13 +4652,16 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
             child: _AcupointFocusBanner(point: selected),
           ),
         if (!_show3D && userFacePhotoBytes.value != null)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Đang dùng gương mặt thật · phủ lưới & huyệt trực quan',
-                style: TextStyle(
+                tr(
+                  'Đang dùng gương mặt thật · phủ lưới & huyệt trực quan',
+                  'Using your face · overlay grid & points',
+                ),
+                style: const TextStyle(
                   color: Color(0xFFA65B38),
                   fontWeight: FontWeight.w700,
                   fontSize: 12.5,
@@ -4509,13 +4670,16 @@ class _AcupointLookupPageBodyState extends State<_AcupointLookupPageBody>
             ),
           ),
         if (!_show3D && _diagramIndex == 1)
-          const Padding(
-            padding: EdgeInsets.fromLTRB(12, 8, 12, 0),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Đồ hình trắc diện: nền minh họa nghiêng; chấm/Số/lưới bật tắt như H.1.',
-                style: TextStyle(
+                tr(
+                  'Đồ hình trắc diện: nền minh họa nghiêng; chấm/Số/lưới bật tắt như H.1.',
+                  'Side chart: profile illustration; dots/No./grid toggle like H.1.',
+                ),
+                style: const TextStyle(
                   color: Color(0xFFA65B38),
                   fontWeight: FontWeight.w700,
                   fontSize: 12.5,
@@ -4758,7 +4922,7 @@ class _AcupointFocusBanner extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Huyệt ${point.code}',
+                    tr('Huyệt ${point.code}', 'Point ${point.code}'),
                     style: const TextStyle(
                       fontWeight: FontWeight.w900,
                       fontSize: 14,
@@ -4766,7 +4930,10 @@ class _AcupointFocusBanner extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    'Vị trí: ${point.subtitle}',
+                    tr(
+                      'Vị trí: ${point.subtitle}',
+                      'Location: ${point.subtitle}',
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -5751,36 +5918,66 @@ class _CourseSignupPageBodyState extends State<_CourseSignupPageBody> {
           ),
         ),
         const SizedBox(height: 12),
-        const _CourseSessionCard(
+        _CourseSessionCard(
           month: '9',
-          monthLabel: 'THÁNG',
-          title: 'KHÓA 48 - OFFLINE',
-          accent: Color(0xFFB42318),
+          monthLabel: tr('THÁNG', 'MONTH'),
+          title: tr('KHÓA 48 - OFFLINE', 'COURSE 48 - OFFLINE'),
+          accent: const Color(0xFFB42318),
           rows: [
-            (Icons.event_outlined, 'Ngày khai giảng: 20/9'),
+            (
+              Icons.event_outlined,
+              tr('Ngày khai giảng: 20/9', 'Start date: 20/9'),
+            ),
             (
               Icons.calendar_today_outlined,
-              'Thời gian học: Thứ 2,3,4,5,6,7, CN',
+              tr(
+                'Thời gian học: Thứ 2,3,4,5,6,7, CN',
+                'Schedule: Mon–Sun',
+              ),
             ),
-            (Icons.schedule_outlined, 'Giờ học: 19:00 – 21:00'),
+            (
+              Icons.schedule_outlined,
+              tr('Giờ học: 19:00 – 21:00', 'Hours: 19:00 – 21:00'),
+            ),
             (
               Icons.location_on_outlined,
-              '16 Kỳ Con, Phường Cầu Kiệu (Quận Phú Nhuận cũ)',
+              tr(
+                '16 Kỳ Con, Phường Cầu Kiệu (Quận Phú Nhuận cũ)',
+                '16 Ky Con, Cau Kieu Ward (former Phu Nhuan Dist.)',
+              ),
             ),
-            (Icons.payments_outlined, 'Học phí: 7 triệu'),
+            (
+              Icons.payments_outlined,
+              tr('Học phí: 7 triệu', 'Tuition: 7 million VND'),
+            ),
           ],
         ),
         const SizedBox(height: 10),
-        const _CourseSessionCard(
+        _CourseSessionCard(
           month: '11',
-          monthLabel: 'THÁNG',
-          title: 'KHÓA 49 - ONLINE',
-          accent: Color(0xFF1D4E89),
+          monthLabel: tr('THÁNG', 'MONTH'),
+          title: tr('KHÓA 49 - ONLINE', 'COURSE 49 - ONLINE'),
+          accent: const Color(0xFF1D4E89),
           rows: [
-            (Icons.event_outlined, 'Ngày khai giảng: Dự kiến đầu tháng'),
-            (Icons.calendar_today_outlined, 'Thời gian học: Thứ 3,5,7'),
-            (Icons.schedule_outlined, 'Giờ học: 20:30 – 22:30'),
-            (Icons.payments_outlined, 'Học phí: 7 triệu'),
+            (
+              Icons.event_outlined,
+              tr(
+                'Ngày khai giảng: Dự kiến đầu tháng',
+                'Start date: Early in the month (TBD)',
+              ),
+            ),
+            (
+              Icons.calendar_today_outlined,
+              tr('Thời gian học: Thứ 3,5,7', 'Schedule: Tue, Thu, Sat'),
+            ),
+            (
+              Icons.schedule_outlined,
+              tr('Giờ học: 20:30 – 22:30', 'Hours: 20:30 – 22:30'),
+            ),
+            (
+              Icons.payments_outlined,
+              tr('Học phí: 7 triệu', 'Tuition: 7 million VND'),
+            ),
           ],
         ),
         const SizedBox(height: 14),
@@ -5792,16 +5989,25 @@ class _CourseSignupPageBodyState extends State<_CourseSignupPageBody> {
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Buổi học thực hành tại Trung tâm Diện Chẩn Bùi Minh Tâm',
+        Text(
+          tr(
+            'Buổi học thực hành tại Trung tâm Diện Chẩn Bùi Minh Tâm',
+            'Hands-on class at Bui Minh Tam Dien Chan Center',
+          ),
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 12.5, color: Color(0xFF65736C)),
+          style: const TextStyle(fontSize: 12.5, color: Color(0xFF65736C)),
         ),
         const SizedBox(height: 12),
         _LegacyInfoTile(
-          title: 'Giảng viên: Thầy Bùi Minh Tâm',
-          subtitle: 'Trung Tâm Diện Chẩn Thực Hành Bùi Minh Tâm',
-          trailing: 'Giới thiệu',
+          title: tr(
+            'Giảng viên: Thầy Bùi Minh Tâm',
+            'Instructor: Master Bui Minh Tam',
+          ),
+          subtitle: tr(
+            'Trung Tâm Diện Chẩn Thực Hành Bùi Minh Tâm',
+            'Bui Minh Tam Practical Dien Chan Center',
+          ),
+          trailing: tr('Giới thiệu', 'About'),
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
@@ -5811,15 +6017,21 @@ class _CourseSignupPageBodyState extends State<_CourseSignupPageBody> {
           ),
         ),
         _LegacyInfoTile(
-          title: 'Điện thoại: $_hotlineDisplay',
+          title: tr(
+            'Điện thoại: $_hotlineDisplay',
+            'Phone: $_hotlineDisplay',
+          ),
           subtitle: 'Facebook: Buiminhtam dien chan',
-          trailing: 'Gọi',
+          trailing: tr('Gọi', 'Call'),
           onTap: () => _callHotline(context),
         ),
         _LegacyInfoTile(
-          title: 'Trung Tâm Diện Chẩn Việt Y Đạo Bùi Quốc Châu',
+          title: tr(
+            'Trung Tâm Diện Chẩn Việt Y Đạo Bùi Quốc Châu',
+            'Bui Quoc Chau Viet Y Dao Dien Chan Center',
+          ),
           subtitle: _centerAddress,
-          trailing: 'Bản đồ',
+          trailing: tr('Bản đồ', 'Map'),
           onTap: () => _openCenterMap(context),
         ),
         const SizedBox(height: 8),
@@ -7800,21 +8012,24 @@ class _FinflowProfileTab extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Đăng xuất?'),
-        content: const Text(
-          'Bạn vẫn có thể sử dụng ứng dụng với tư cách khách. Dữ liệu tài khoản vẫn được lưu trên máy chủ để đăng nhập lại.',
+        title: Text(tr('Đăng xuất?', 'Sign out?')),
+        content: Text(
+          tr(
+            'Bạn vẫn có thể sử dụng ứng dụng với tư cách khách. Dữ liệu tài khoản vẫn được lưu trên máy chủ để đăng nhập lại.',
+            'You can keep using the app as a guest. Account data stays on the server so you can sign in again.',
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Hủy'),
+            child: Text(tr('Hủy', 'Cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFFB91C1C),
             ),
-            child: const Text('Đăng xuất'),
+            child: Text(tr('Đăng xuất', 'Sign out')),
           ),
         ],
       ),
@@ -7825,8 +8040,13 @@ class _FinflowProfileTab extends StatelessWidget {
       } catch (_) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Không đăng xuất được. Vui lòng thử lại.'),
+            SnackBar(
+              content: Text(
+                tr(
+                  'Không đăng xuất được. Vui lòng thử lại.',
+                  'Could not sign out. Please try again.',
+                ),
+              ),
             ),
           );
         }

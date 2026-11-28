@@ -3,6 +3,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'app_locale.dart';
+
 /// A bundled 3D surface, independent of camera permissions or network access.
 class FaceMesh {
   FaceMesh(this.vertices, this.triangles);
@@ -190,105 +192,121 @@ class _Face3DPageState extends State<Face3DPage>
   });
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: widget.embedded ? Colors.transparent : null,
-    appBar: widget.embedded
-        ? null
-        : AppBar(
-            title: const Text('Khuôn mặt 3D'),
-            actions: [
-              IconButton(
-                tooltip: 'Đặt lại góc nhìn',
-                onPressed: _reset,
-                icon: const Icon(Icons.center_focus_strong),
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<AppLanguage>(
+      valueListenable: appLanguage,
+      builder: (context, language, _) => Scaffold(
+        backgroundColor: widget.embedded ? Colors.transparent : null,
+        appBar: widget.embedded
+            ? null
+            : AppBar(
+                title: Text(tr('Khuôn mặt 3D', '3D face')),
+                actions: [
+                  IconButton(
+                    tooltip: tr('Đặt lại góc nhìn', 'Reset view'),
+                    onPressed: _reset,
+                    icon: const Icon(Icons.center_focus_strong),
+                  ),
+                ],
+              ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: FutureBuilder<FaceMesh>(
+                  future: _mesh,
+                  builder: (context, snapshot) {
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              tr(
+                                'Không tải được mô hình 3D.',
+                                'Could not load the 3D model.',
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => setState(_load),
+                              child: Text(tr('Thử lại', 'Retry')),
+                            ),
+                            TextButton(
+                              onPressed: widget.onShow2D ??
+                                  () => Navigator.pop(context),
+                              child: Text(tr('Về đồ hình 2D', 'Back to 2D')),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+                    if (!snapshot.hasData) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    return Column(
+                      children: [
+                        Expanded(
+                          child: Semantics(
+                            label: tr(
+                              'Mô hình khuôn mặt 3D. Kéo để xoay, chụm hai ngón để phóng to.',
+                              '3D face model. Drag to rotate, pinch to zoom.',
+                            ),
+                            child: GestureDetector(
+                              key: const ValueKey('face-3d-gesture'),
+                              behavior: HitTestBehavior.opaque,
+                              onDoubleTap: _reset,
+                              onScaleStart: (_) => _startZoom = _zoom,
+                              onScaleUpdate: (details) => setState(() {
+                                _yaw =
+                                    (_yaw + details.focalPointDelta.dx * 0.01)
+                                        .clamp(-1.48, 1.48);
+                                _pitch =
+                                    (_pitch + details.focalPointDelta.dy * 0.01)
+                                        .clamp(-0.85, 0.85);
+                                _zoom = (_startZoom * details.scale).clamp(
+                                  0.65,
+                                  2.5,
+                                );
+                              }),
+                              child: CustomPaint(
+                                painter: _FaceMeshPainter(
+                                  snapshot.data!,
+                                  _yaw,
+                                  _pitch,
+                                  _zoom,
+                                  _wire,
+                                  _drawing,
+                                  widget.markers,
+                                  widget.highlightCode,
+                                  widget.showLabels,
+                                  widget.showGrid,
+                                  _focus,
+                                  _pulse,
+                                ),
+                                child: const SizedBox.expand(),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+              Text(
+                tr(
+                  'Kéo để xoay · Chụm để thu phóng · Chạm hai lần để đặt lại',
+                  'Drag to rotate · Pinch to zoom · Double-tap to reset',
+                ),
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12),
               ),
             ],
           ),
-    body: SafeArea(
-      child: Column(
-        children: [
-          Expanded(
-            child: FutureBuilder<FaceMesh>(
-              future: _mesh,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('Không tải được mô hình 3D.'),
-                        TextButton(
-                          onPressed: () => setState(_load),
-                          child: const Text('Thử lại'),
-                        ),
-                        TextButton(
-                          onPressed:
-                              widget.onShow2D ?? () => Navigator.pop(context),
-                          child: const Text('Về đồ hình 2D'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-                if (!snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                return Column(
-                  children: [
-                    Expanded(
-                      child: Semantics(
-                        label:
-                            'Mô hình khuôn mặt 3D. Kéo để xoay, chụm hai ngón để phóng to.',
-                        child: GestureDetector(
-                          key: const ValueKey('face-3d-gesture'),
-                          behavior: HitTestBehavior.opaque,
-                          onDoubleTap: _reset,
-                          onScaleStart: (_) => _startZoom = _zoom,
-                          onScaleUpdate: (details) => setState(() {
-                            _yaw = (_yaw + details.focalPointDelta.dx * 0.01)
-                                .clamp(-1.48, 1.48);
-                            _pitch =
-                                (_pitch + details.focalPointDelta.dy * 0.01)
-                                    .clamp(-0.85, 0.85);
-                            _zoom = (_startZoom * details.scale).clamp(
-                              0.65,
-                              2.5,
-                            );
-                          }),
-                          child: CustomPaint(
-                            painter: _FaceMeshPainter(
-                              snapshot.data!,
-                              _yaw,
-                              _pitch,
-                              _zoom,
-                              _wire,
-                              _drawing,
-                              widget.markers,
-                              widget.highlightCode,
-                              widget.showLabels,
-                              widget.showGrid,
-                              _focus,
-                              _pulse,
-                            ),
-                            child: const SizedBox.expand(),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-          const Text(
-            'Kéo để xoay · Chụm để thu phóng · Chạm hai lần để đặt lại',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12),
-          ),
-        ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _FaceMeshPainter extends CustomPainter {
